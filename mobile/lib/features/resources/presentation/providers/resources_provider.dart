@@ -11,13 +11,17 @@ class ResourcesState {
   final AllResourcesModel? resources;
   final bool isLoading;
   final String? error;
-  final Map<String, int> pendingTaps; // batch tap için
+  final Map<String, int> pendingTaps;
+  final List<BuildingModel> buildings;
+  final bool buildingsLoading;
 
   const ResourcesState({
     this.resources,
     this.isLoading = false,
     this.error,
     this.pendingTaps = const {},
+    this.buildings = const [],
+    this.buildingsLoading = false,
   });
 
   ResourcesState copyWith({
@@ -25,12 +29,16 @@ class ResourcesState {
     bool? isLoading,
     String? error,
     Map<String, int>? pendingTaps,
+    List<BuildingModel>? buildings,
+    bool? buildingsLoading,
   }) =>
       ResourcesState(
         resources: resources ?? this.resources,
         isLoading: isLoading ?? this.isLoading,
         error: error,
         pendingTaps: pendingTaps ?? this.pendingTaps,
+        buildings: buildings ?? this.buildings,
+        buildingsLoading: buildingsLoading ?? this.buildingsLoading,
       );
 }
 
@@ -46,8 +54,13 @@ class ResourcesNotifier extends StateNotifier<ResourcesState> {
   Future<void> load() async {
     state = state.copyWith(isLoading: true);
     try {
-      final res = await _ds.getAll();
-      state = state.copyWith(resources: res, isLoading: false);
+      final results = await Future.wait([
+        _ds.getAll(),
+        _ds.getBuildings(),
+      ]);
+      final res = results[0] as AllResourcesModel;
+      final buildings = results[1] as List<BuildingModel>;
+      state = state.copyWith(resources: res, buildings: buildings, isLoading: false);
       _startAutoProduction();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -85,10 +98,22 @@ class ResourcesNotifier extends StateNotifier<ResourcesState> {
 
   Future<void> upgradeTap(String resourceType) async {
     try {
-      final res = await _ds.upgradeTap(resourceType);
+      await _ds.upgradeTap(resourceType);
       await load();
     } catch (e) {
       state = state.copyWith(error: e.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> buildOrUpgrade(String buildingType) async {
+    state = state.copyWith(buildingsLoading: true);
+    try {
+      await _ds.buildOrUpgrade(buildingType);
+      await load();
+    } catch (e) {
+      state = state.copyWith(buildingsLoading: false, error: e.toString());
+      rethrow;
     }
   }
 

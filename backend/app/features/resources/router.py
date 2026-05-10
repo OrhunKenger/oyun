@@ -7,7 +7,8 @@ from app.features.resources.repository import ResourceRepository
 from app.features.resources.service import ResourceService
 from app.features.resources.schemas import (
     TapRequest, TapResponse, AllResourcesResponse,
-    UpgradeTapRequest, UpgradeTapResponse
+    UpgradeTapRequest, UpgradeTapResponse,
+    BuildRequest, BuildResponse, GetBuildingsResponse,
 )
 
 router = APIRouter()
@@ -41,3 +42,20 @@ async def upgrade_tap(
     service: ResourceService = Depends(get_service),
 ):
     return await service.upgrade_tap(user.id, data)
+
+
+@router.get("/buildings", response_model=GetBuildingsResponse)
+async def get_buildings(
+    user=Depends(get_current_user),
+    service: ResourceService = Depends(get_service),
+):
+    return await service.get_buildings(user.id)
+
+
+@router.post("/build", response_model=BuildResponse)
+async def build_or_upgrade(
+    data: BuildRequest,
+    user=Depends(get_current_user),
+    service: ResourceService = Depends(get_service),
+):
+    return await service.build_or_upgrade(user.id, data)

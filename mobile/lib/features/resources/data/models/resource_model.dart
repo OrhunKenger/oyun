@@ -54,3 +54,24 @@ class AllResourcesModel {
         iron: ResourceState.fromJson(json['iron']),
       );
 }
+
+class BuildingModel {
+  final String buildingType;
+  final int level;
+  final String resourceType;
+  final double productionRate;
+
+  BuildingModel({
+    required this.buildingType,
+    required this.level,
+    required this.resourceType,
+    required this.productionRate,
+  });
+
+  factory BuildingModel.fromJson(Map<String, dynamic> json) => BuildingModel(
+        buildingType: json['building_type'],
+        level: json['level'],
+        resourceType: json['resource_type'],
+        productionRate: (json['production_rate'] as num).toDouble(),
+      );
+}

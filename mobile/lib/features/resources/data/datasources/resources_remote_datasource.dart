@@ -24,4 +24,17 @@ class ResourcesRemoteDatasource {
     });
     return res.data;
   }
+
+  Future<List<BuildingModel>> getBuildings() async {
+    final res = await _dio.get('/resources/buildings');
+    final list = res.data['buildings'] as List;
+    return list.map((e) => BuildingModel.fromJson(e)).toList();
+  }
+
+  Future<Map<String, dynamic>> buildOrUpgrade(String buildingType) async {
+    final res = await _dio.post('/resources/build', data: {
+      'building_type': buildingType,
+    });
+    return res.data;
+  }
 }

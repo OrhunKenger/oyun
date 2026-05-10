@@ -59,3 +59,17 @@ class BuildingInfo(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class BuildRequest(BaseModel):
+    building_type: str  # sawmill | quarry | forge | treasury
+
+
+class BuildResponse(BaseModel):
+    building: BuildingInfo
+    costs_paid: dict
+    new_auto_rate: float
+
+
+class GetBuildingsResponse(BaseModel):
+    buildings: list[BuildingInfo]
