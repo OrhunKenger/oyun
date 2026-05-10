@@ -1,0 +1,36 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: pixelwar_db
+    environment:
+      POSTGRES_DB: pixelwar
+      POSTGRES_USER: pixelwar
+      POSTGRES_PASSWORD: pixelwar_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  # 5433 — diğer projelerle çakışmaz
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: pixelwar_redis
+    ports:
+      - "6380:6379"  # 6380 — çakışmaz
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    container_name: pixelwar_api
+    env_file: ./backend/.env
+    ports:
+      - "8001:8000"  # 8001 — diğer projelerle çakışmaz
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+volumes:
+  pgdata:

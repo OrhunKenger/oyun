@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+*.db
+*.db-shm
+*.db-wal
+
+# Flutter
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/pubspec.lock
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Docker
+docker-compose.override.yml

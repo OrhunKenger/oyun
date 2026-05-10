@@ -1,0 +1,30 @@
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from app.features.auth.model import User
+
+
+class AuthRepository:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def get_by_email(self, email: str) -> User | None:
+        result = await self.db.execute(select(User).where(User.email == email))
+        return result.scalar_one_or_none()
+
+    async def get_by_id(self, user_id: str) -> User | None:
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        return result.scalar_one_or_none()
+
+    async def get_by_provider(self, provider_id: str) -> User | None:
+        result = await self.db.execute(select(User).where(User.provider_id == provider_id))
+        return result.scalar_one_or_none()
+
+    async def create(self, user: User) -> User:
+        self.db.add(user)
+        await self.db.flush()
+        return user
+
+    async def username_exists(self, username: str) -> bool:
+        result = await self.db.execute(select(User).where(User.username == username))
+        return result.scalar_one_or_none() is not None
