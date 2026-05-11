@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +16,8 @@ class MapScreen extends ConsumerStatefulWidget {
 class _MapScreenState extends ConsumerState<MapScreen> {
   static const int gridSize = 50;
   static const double pixelSize = 14.0;
+  static const double _chunkThreshold = gridSize * pixelSize * 0.45; // ~315px
+
   final TransformationController _transformCtrl = TransformationController();
 
   @override
@@ -25,9 +26,31 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     super.dispose();
   }
 
+  // Pan bittikten sonra yeterince kaydıysa yeni chunk yükle
+  void _onInteractionEnd(ScaleEndDetails _) {
+    final m = _transformCtrl.value;
+    final tx = m.entry(0, 3);
+    final ty = m.entry(1, 3);
+
+    final state = ref.read(mapProvider);
+    int dx = 0, dy = 0;
+
+    if (tx < -_chunkThreshold) dx = gridSize ~/ 2;
+    else if (tx > _chunkThreshold) dx = -(gridSize ~/ 2);
+
+    if (ty < -_chunkThreshold) dy = gridSize ~/ 2;
+    else if (ty > _chunkThreshold) dy = -(gridSize ~/ 2);
+
+    if (dx != 0 || dy != 0) {
+      _transformCtrl.value = Matrix4.identity();
+      final newX = (state.offsetX + dx).clamp(0, 1950);
+      final newY = (state.offsetY + dy).clamp(0, 1950);
+      ref.read(mapProvider.notifier).loadChunk(newX, newY);
+    }
+  }
+
   void _onPixelTap(int x, int y, MapState state) {
     final owner = ref.read(mapProvider.notifier).ownerAt(x, y);
-
     if (owner != null && owner.userId == state.myUserId) {
       _showSnack('Bu toprak senin!', AppColors.green);
       return;
@@ -78,7 +101,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _MapHeader(isLoading: state.isLoading, onBack: () => context.go('/resources')),
+            _MapHeader(
+              isLoading: state.isLoading,
+              onBack: () => context.go('/resources'),
+            ),
             _StatsBar(state: state),
             const _MapLegend(),
             Expanded(
@@ -88,8 +114,10 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   color: const Color(0xFF0A0A14),
                   child: InteractiveViewer(
                     transformationController: _transformCtrl,
-                    minScale: 0.3,
+                    constrained: false,
+                    minScale: 0.4,
                     maxScale: 8.0,
+                    onInteractionEnd: _onInteractionEnd,
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: _TerritoryGrid(
@@ -105,13 +133,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   ),
                 ),
               ),
-            ),
-            _MapControls(
-              onMove: (dx, dy) {
-                final newX = (state.offsetX + dx * gridSize).clamp(0, 1950).toInt();
-                final newY = (state.offsetY + dy * gridSize).clamp(0, 1950).toInt();
-                ref.read(mapProvider.notifier).loadChunk(newX, newY);
-              },
             ),
           ],
         ),
@@ -224,9 +245,9 @@ class _MapLegend extends StatelessWidget {
           const SizedBox(width: 16),
           _LegendDot(color: const Color(0xFF0D0D1A), label: 'Boş'),
           const Spacer(),
-          const Icon(CupertinoIcons.info_circle, color: AppColors.textTertiary, size: 13),
+          const Icon(CupertinoIcons.arrow_left_right, color: AppColors.textTertiary, size: 13),
           const SizedBox(width: 4),
-          const Text('Parlak = daha güçlü',
+          const Text('Kaydır = yeni bölge',
               style: TextStyle(color: AppColors.textTertiary, fontSize: 10)),
         ],
       ),
@@ -322,17 +343,13 @@ class _TerritoryPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.3;
 
-    // Her territory için piksel hesapla — hepsini birer kere çiz
-    // Önce grid boş alanları çiz
     final bgPaint = Paint()..color = const Color(0xFF0D0D1A);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
-    // Her territory'yi çiz
     for (final t in territories) {
       final color = t.toColor(myUserId ?? '');
       final paint = Paint()..color = color;
 
-      // Territory sınırlarını hesapla (chunk içindeki kesişim)
       final txMin = t.homeX - t.territoryRadius;
       final txMax = t.homeX + t.territoryRadius;
       final tyMin = t.homeY - t.territoryRadius;
@@ -355,7 +372,7 @@ class _TerritoryPainter extends CustomPainter {
         }
       }
 
-      // Merkez noktayı (home) belirt
+      // Merkez noktayı belirt
       final homeCol = t.homeX - offsetX;
       final homeRow = t.homeY - offsetY;
       if (homeCol >= 0 && homeCol < gridSize && homeRow >= 0 && homeRow < gridSize) {
@@ -365,11 +382,11 @@ class _TerritoryPainter extends CustomPainter {
           pixelSize * 0.6,
           pixelSize * 0.6,
         );
-        canvas.drawRect(centerRect, Paint()..color = Colors.white.withOpacity(0.8));
+        canvas.drawRect(centerRect, Paint()..color = Colors.white.withValues(alpha: 0.8));
       }
     }
 
-    // Boş pikseller için grid çiz
+    // Boş pikseller için grid
     for (int row = 0; row < gridSize; row++) {
       for (int col = 0; col < gridSize; col++) {
         final worldX = offsetX + col;
@@ -415,7 +432,7 @@ class _AttackSheet extends StatelessWidget {
           Container(
             width: 64, height: 64,
             decoration: BoxDecoration(
-              color: isEmpty ? AppColors.green.withOpacity(0.12) : AppColors.red.withOpacity(0.12),
+              color: isEmpty ? AppColors.green.withValues(alpha: 0.12) : AppColors.red.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(18),
             ),
             child: Icon(
@@ -494,56 +511,15 @@ class _InfoBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
           Text(value, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w800)),
           Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
         ],
-      ),
-    );
-  }
-}
-
-// ── Yön Kontrolleri ──────────────────────────────────────
-class _MapControls extends StatelessWidget {
-  final void Function(int dx, int dy) onMove;
-  const _MapControls({required this.onMove});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.black,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _navBtn(CupertinoIcons.chevron_left, () => onMove(-1, 0)),
-          const SizedBox(width: 8),
-          Column(
-            children: [
-              _navBtn(CupertinoIcons.chevron_up, () => onMove(0, -1)),
-              const SizedBox(height: 8),
-              _navBtn(CupertinoIcons.chevron_down, () => onMove(0, 1)),
-            ],
-          ),
-          const SizedBox(width: 8),
-          _navBtn(CupertinoIcons.chevron_right, () => onMove(1, 0)),
-        ],
-      ),
-    );
-  }
-
-  Widget _navBtn(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44, height: 44,
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
-        child: Icon(icon, color: AppColors.white, size: 18),
       ),
     );
   }
