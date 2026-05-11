@@ -1029,6 +1029,37 @@ class _BuildingTile extends StatelessWidget {
     return scaled.join(' + ');
   }
 
+  // "80 Odun + 60 Taş" formatını parse edip kaynaklar yeterli mi kontrol eder
+  bool _canAfford(String costStr) {
+    final nameToField = {
+      'Altın': 'gold', 'Odun': 'wood', 'Taş': 'stone',
+      'Demir': 'iron', 'Yiyecek': 'food',
+    };
+    for (final part in costStr.split('+')) {
+      final m = RegExp(r'([\d.,]+)K?\s+(\w+)').firstMatch(part.trim());
+      if (m == null) continue;
+      final rawNum = m.group(1)!.replaceAll(',', '.');
+      double required = double.tryParse(rawNum) ?? 0;
+      if (part.contains('K')) required *= 1000;
+      final field = nameToField[m.group(2)];
+      if (field == null) continue;
+      final have = _amountFor(field);
+      if (have < required) return false;
+    }
+    return true;
+  }
+
+  double _amountFor(String field) {
+    switch (field) {
+      case 'gold': return resources.gold.amount;
+      case 'wood': return resources.wood.amount;
+      case 'stone': return resources.stone.amount;
+      case 'iron': return resources.iron.amount;
+      case 'food': return resources.food.amount;
+      default: return 0;
+    }
+  }
+
   void _onBuild(BuildContext context) async {
     try {
       await ref.read(resourcesProvider.notifier).buildOrUpgrade(buildingType);
@@ -1053,103 +1084,111 @@ class _BuildingTile extends StatelessWidget {
     final isBuilt = level > 0;
     final autoRate = building?.productionRate ?? 0;
     final displayCost = isBuilt ? _upgradeCostLabel(level) : costLabel;
+    final affordable = _canAfford(displayCost);
+    final activeColor = affordable ? color : AppColors.textTertiary;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: isBuilt
-            ? Border.all(color: color.withOpacity(0.3), width: 1)
-            : null,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: color.withOpacity(isBuilt ? 0.2 : 0.08),
-              borderRadius: BorderRadius.circular(14),
+    return Opacity(
+      opacity: affordable ? 1.0 : 0.45,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: isBuilt
+              ? Border.all(color: activeColor.withOpacity(0.3), width: 1)
+              : null,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: activeColor.withOpacity(isBuilt ? 0.2 : 0.08),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Center(
+                child: Text(icon, style: const TextStyle(fontSize: 26)),
+              ),
             ),
-            child: Center(
-              child: Text(icon, style: const TextStyle(fontSize: 26)),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        color: AppColors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (isBuilt) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: affordable ? AppColors.white : AppColors.textSecondary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
                         ),
-                        child: Text(
-                          'Sv.$level',
-                          style: TextStyle(
-                            color: color,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
+                      ),
+                      if (isBuilt) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: activeColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'Sv.$level',
+                            style: TextStyle(
+                              color: activeColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isBuilt
+                        ? '+${autoRate.toStringAsFixed(1)}/s $description'
+                        : description,
+                    style: TextStyle(
+                      color: isBuilt ? activeColor : AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isBuilt ? 'Yükselt: $displayCost' : 'İnşa: $displayCost',
+                    style: TextStyle(
+                      color: affordable ? AppColors.textTertiary : AppColors.red.withOpacity(0.7),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: affordable ? () => _onBuild(context) : null,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: activeColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: activeColor.withOpacity(0.3)),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  isBuilt
-                      ? '+${autoRate.toStringAsFixed(1)}/s $description'
-                      : description,
+                child: Text(
+                  isBuilt ? 'Yükselt' : 'İnşa Et',
                   style: TextStyle(
-                    color: isBuilt ? color : AppColors.textSecondary,
+                    color: activeColor,
                     fontSize: 12,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  isBuilt ? 'Yükselt: $displayCost' : 'İnşa: $displayCost',
-                  style: const TextStyle(color: AppColors.textTertiary, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: () => _onBuild(context),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: color.withOpacity(0.3)),
-              ),
-              child: Text(
-                isBuilt ? 'Yükselt' : 'İnşa Et',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
