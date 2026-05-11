@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_, func
 
 from app.features.battle.model import Battle, BattleStatus
 
@@ -30,3 +30,12 @@ class BattleRepository:
     async def update(self, battle: Battle) -> Battle:
         await self.db.flush()
         return battle
+
+    async def count_active_for_user(self, user_id: str) -> int:
+        result = await self.db.execute(
+            select(func.count(Battle.id)).where(
+                or_(Battle.attacker_id == user_id, Battle.defender_id == user_id),
+                Battle.status == BattleStatus.active,
+            )
+        )
+        return int(result.scalar() or 0)

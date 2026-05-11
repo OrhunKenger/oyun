@@ -13,9 +13,13 @@ class DamageBreakdown {
   final double damageRatio;
   final double resourcesLost;
   final int soldiersLost;
-  final bool buildingDegraded;
+  final String? buildingDegraded; // hasar alan bina tipi
   final int pixelsTransferred;
   final bool defenderEliminated;
+  final Map<String, double> loot;
+  final int attackerLosses;
+  final Map<String, int> attackerLossBreakdown;
+  final Map<String, int> defenderLossBreakdown;
 
   const DamageBreakdown({
     required this.totalDamage,
@@ -25,6 +29,10 @@ class DamageBreakdown {
     required this.buildingDegraded,
     required this.pixelsTransferred,
     required this.defenderEliminated,
+    this.loot = const {},
+    this.attackerLosses = 0,
+    this.attackerLossBreakdown = const {},
+    this.defenderLossBreakdown = const {},
   });
 
   factory DamageBreakdown.fromJson(Map<String, dynamic> j) => DamageBreakdown(
@@ -32,9 +40,22 @@ class DamageBreakdown {
         damageRatio: (j['damage_ratio'] as num).toDouble(),
         resourcesLost: (j['resources_lost'] as num).toDouble(),
         soldiersLost: (j['soldiers_lost'] as num? ?? 0).toInt(),
-        buildingDegraded: j['building_degraded'] as bool? ?? false,
+        buildingDegraded: j['building_degraded'] as String?,
         pixelsTransferred: (j['pixels_transferred'] as num? ?? 0).toInt(),
         defenderEliminated: j['defender_eliminated'] as bool? ?? false,
+        loot: (j['loot'] as Map?)?.map(
+              (k, v) => MapEntry(k.toString(), (v as num).toDouble()),
+            ) ??
+            const {},
+        attackerLosses: (j['attacker_losses'] as num? ?? 0).toInt(),
+        attackerLossBreakdown: (j['attacker_loss_breakdown'] as Map?)?.map(
+              (k, v) => MapEntry(k.toString(), (v as num).toInt()),
+            ) ??
+            const {},
+        defenderLossBreakdown: (j['defender_loss_breakdown'] as Map?)?.map(
+              (k, v) => MapEntry(k.toString(), (v as num).toInt()),
+            ) ??
+            const {},
       );
 }
 
@@ -141,7 +162,8 @@ class BattleNotifier extends StateNotifier<BattleState> {
     try {
       final res = await _dio.post('/battle/$battleId/finish');
       final data = res.data as Map<String, dynamic>;
-      final won = data['winner_id'] != null;
+      // Galibiyet: status alanından oku (eski "winner_id != null" yanlıştı)
+      final won = data['status'] == 'attacker_won';
       final dmgJson = data['damage'] as Map<String, dynamic>?;
       state = state.copyWith(
         isFinished: true,
@@ -150,7 +172,7 @@ class BattleNotifier extends StateNotifier<BattleState> {
         damage: dmgJson != null ? DamageBreakdown.fromJson(dmgJson) : null,
       );
     } catch (_) {
-      state = state.copyWith(isFinished: true, won: state.myTaps > state.enemyTaps);
+      state = state.copyWith(isFinished: true, won: false);
     }
   }
 

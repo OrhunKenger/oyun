@@ -776,16 +776,20 @@ class _DamageBreakdownCard extends StatelessWidget {
           Row(
             children: [
               _BreakdownStat(
-                icon: '💰',
-                label: 'Kaynak Kaybı',
-                value: _fmt(damage.resourcesLost),
-                color: AppColors.yellow,
+                icon: '🗺️',
+                label: 'Ele Geçirilen',
+                value: '${damage.pixelsTransferred}px',
+                color: damage.pixelsTransferred > 0
+                    ? AppColors.green
+                    : AppColors.textSecondary,
               ),
               _BreakdownStat(
-                icon: '⚔️',
-                label: 'Asker Kaybı',
-                value: '${damage.soldiersLost}',
-                color: AppColors.red,
+                icon: '🏰',
+                label: 'Yıkılan Bina',
+                value: damage.buildingDegraded ?? '-',
+                color: damage.buildingDegraded != null
+                    ? AppColors.red
+                    : AppColors.textSecondary,
               ),
             ],
           ),
@@ -793,23 +797,97 @@ class _DamageBreakdownCard extends StatelessWidget {
           Row(
             children: [
               _BreakdownStat(
-                icon: '🏰',
-                label: 'Bina Hasarı',
-                value: damage.buildingDegraded ? 'Evet' : 'Hayır',
-                color: damage.buildingDegraded
-                    ? AppColors.red
-                    : AppColors.textSecondary,
+                icon: '⚔️',
+                label: 'Senin Kaybın',
+                value: '${damage.attackerLosses}',
+                color: AppColors.red,
               ),
               _BreakdownStat(
-                icon: '🗺️',
-                label: 'Toprak Ele Geçirildi',
-                value: '${damage.pixelsTransferred}px',
-                color: damage.pixelsTransferred > 0
-                    ? AppColors.green
-                    : AppColors.textSecondary,
+                icon: '🛡️',
+                label: 'Düşman Kaybı',
+                value: '${damage.soldiersLost}',
+                color: AppColors.green,
               ),
             ],
           ),
+
+          // Yağma (loot)
+          if (damage.loot.isNotEmpty &&
+              damage.loot.values.any((v) => v > 0)) ...[
+            const SizedBox(height: 14),
+            const Divider(color: AppColors.surface3, height: 1),
+            const SizedBox(height: 12),
+            const Text(
+              '💰 YAĞMA',
+              style: TextStyle(
+                color: AppColors.yellow,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: damage.loot.entries
+                  .where((e) => e.value > 0)
+                  .map((e) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppColors.yellow.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${_resIcon(e.key)} +${_fmt(e.value)}',
+                          style: const TextStyle(
+                            color: AppColors.yellow,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ],
+
+          // Asker kayıp dökümü (detaylı)
+          if (damage.attackerLossBreakdown.values.any((v) => v > 0) ||
+              damage.defenderLossBreakdown.values.any((v) => v > 0)) ...[
+            const SizedBox(height: 14),
+            const Divider(color: AppColors.surface3, height: 1),
+            const SizedBox(height: 12),
+            const Text(
+              'ASKER KAYIPLARI',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _LossList(
+                    title: 'Sen',
+                    color: AppColors.red,
+                    losses: damage.attackerLossBreakdown,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _LossList(
+                    title: 'Düşman',
+                    color: AppColors.green,
+                    losses: damage.defenderLossBreakdown,
+                  ),
+                ),
+              ],
+            ),
+          ],
 
           if (damage.defenderEliminated) ...[
             const SizedBox(height: 14),
@@ -839,6 +917,69 @@ class _DamageBreakdownCard extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+String _resIcon(String key) {
+  switch (key) {
+    case 'gold': return '💰';
+    case 'wood': return '🪵';
+    case 'stone': return '🪨';
+    case 'iron': return '⚙️';
+    case 'food': return '🍖';
+    default: return key;
+  }
+}
+
+String _soldierIcon(String key) {
+  switch (key) {
+    case 'swordsman': return '⚔️';
+    case 'archer': return '🏹';
+    case 'knight': return '🐴';
+    case 'catapult': return '💣';
+    default: return key;
+  }
+}
+
+class _LossList extends StatelessWidget {
+  final String title;
+  final Color color;
+  final Map<String, int> losses;
+  const _LossList({required this.title, required this.color, required this.losses});
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = losses.entries.where((e) => e.value > 0).toList();
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.black,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          if (entries.isEmpty)
+            const Text('—',
+                style: TextStyle(color: AppColors.textTertiary, fontSize: 12))
+          else
+            ...entries.map((e) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 1),
+                  child: Text(
+                    '${_soldierIcon(e.key)} -${e.value}',
+                    style: const TextStyle(
+                        color: AppColors.white, fontSize: 12),
+                  ),
+                )),
         ],
       ),
     );

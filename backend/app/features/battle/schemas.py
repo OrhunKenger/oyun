@@ -37,10 +37,14 @@ class DamageBreakdown(BaseModel):
     total_damage: float
     damage_ratio: float
     resources_lost: float
-    soldiers_lost: int
+    soldiers_lost: int  # savunanın asker kaybı
     building_degraded: str | None  # Hasar alan bina tipi
     pixels_transferred: int
     defender_eliminated: bool  # Tamamen sıfırlandı mı?
+    loot: dict[str, float] = {}  # saldırgana giden kaynak (yağma)
+    attacker_losses: int = 0  # saldıranın asker kaybı
+    attacker_loss_breakdown: dict[str, int] = {}
+    defender_loss_breakdown: dict[str, int] = {}
 
 
 class BattleResult(BaseModel):
