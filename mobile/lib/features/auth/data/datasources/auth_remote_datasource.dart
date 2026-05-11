@@ -29,4 +29,9 @@ class AuthRemoteDatasource {
     });
     return AuthResponse.fromJson(res.data);
   }
+
+  Future<UserProfile> getProfile() async {
+    final res = await _dio.get('/auth/me');
+    return UserProfile.fromJson(res.data);
+  }
 }

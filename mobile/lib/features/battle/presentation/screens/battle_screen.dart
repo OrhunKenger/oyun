@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -12,21 +13,25 @@ class BattleScreen extends ConsumerStatefulWidget {
   ConsumerState<BattleScreen> createState() => _BattleScreenState();
 }
 
-class _BattleScreenState extends ConsumerState<BattleScreen> with TickerProviderStateMixin {
+class _BattleScreenState extends ConsumerState<BattleScreen>
+    with TickerProviderStateMixin {
   late AnimationController _tapAnim;
-  late AnimationController _shakeAnim;
+  late AnimationController _pulseAnim;
 
   @override
   void initState() {
     super.initState();
-    _tapAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 60));
-    _shakeAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _tapAnim = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 80));
+    _pulseAnim = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 600))
+      ..repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _tapAnim.dispose();
-    _shakeAnim.dispose();
+    _pulseAnim.dispose();
     super.dispose();
   }
 
@@ -40,78 +45,160 @@ class _BattleScreenState extends ConsumerState<BattleScreen> with TickerProvider
     final state = ref.watch(battleProvider(widget.battleId));
 
     if (state.isFinished) {
-      return _ResultScreen(state: state, battleId: widget.battleId);
+      return _ResultScreen(state: state);
     }
 
     final total = state.myTaps + state.enemyTaps;
     final myRatio = total == 0 ? 0.5 : state.myTaps / total;
-    final progress = state.remainingSeconds / 30.0;
+    final timeRatio = state.remainingSeconds / 30.0;
+
+    final timerColor = state.remainingSeconds > 15
+        ? AppColors.green
+        : state.remainingSeconds > 7
+            ? AppColors.yellow
+            : AppColors.red;
 
     return Scaffold(
-      backgroundColor: AppTheme.primary,
+      backgroundColor: AppColors.black,
       body: SafeArea(
         child: Column(
           children: [
-            // Süre bar
-            _TimerBar(progress: progress, seconds: state.remainingSeconds),
-            const SizedBox(height: 16),
-            // Skor
+            // ── Timer ──────────────────────────────────
+            _TimerSection(
+              seconds: state.remainingSeconds,
+              ratio: timeRatio,
+              color: timerColor,
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Skorlar ────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                children: [
+                  _ScoreCard(
+                    label: 'Sen',
+                    taps: state.myTaps,
+                    color: AppColors.blue,
+                    isLeading: state.myTaps >= state.enemyTaps,
+                  ),
+                  const SizedBox(width: 12),
+                  _ScoreCard(
+                    label: 'Düşman',
+                    taps: state.enemyTaps,
+                    color: AppColors.red,
+                    isLeading: state.enemyTaps > state.myTaps,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Güç barı ───────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: _PowerBar(myRatio: myRatio),
+            ),
+
+            const SizedBox(height: 12),
+
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _ScoreBox(label: 'SEN', taps: state.myTaps, color: const Color(0xFF00FF88)),
-                  const Text('VS', style: TextStyle(color: Colors.white54, fontSize: 20, fontWeight: FontWeight.bold)),
-                  _ScoreBox(label: 'DÜŞMAN', taps: state.enemyTaps, color: AppTheme.accent, align: TextAlign.right),
+                  Text(
+                    'Sen  ${(myRatio * 100).toStringAsFixed(0)}%',
+                    style: const TextStyle(
+                        color: AppColors.blue,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    '${((1 - myRatio) * 100).toStringAsFixed(0)}%  Düşman',
+                    style: const TextStyle(
+                        color: AppColors.red,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            // Güç barı
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: _PowerBar(myRatio: myRatio),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'EKRANA VURARAK KAZANMAYA ÇALIŞ!',
-              style: TextStyle(color: Colors.white54, fontSize: 11, letterSpacing: 3),
-            ),
-            // Ana tıklama alanı
+
+            // ── Ana Tıklama Alanı ──────────────────────
             Expanded(
-              child: GestureDetector(
-                onTapDown: (_) => _onTap(),
-                child: ScaleTransition(
-                  scale: Tween(begin: 1.0, end: 0.96).animate(
-                    CurvedAnimation(parent: _tapAnim, curve: Curves.easeOut),
-                  ),
-                  child: Container(
-                    margin: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: const RadialGradient(
-                        colors: [Color(0xFF16213E), Color(0xFF0A0A1A)],
-                      ),
-                      border: Border.all(color: AppTheme.accent, width: 2),
-                      borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: GestureDetector(
+                  onTapDown: (_) => _onTap(),
+                  child: ScaleTransition(
+                    scale: Tween(begin: 1.0, end: 0.95).animate(
+                      CurvedAnimation(parent: _tapAnim, curve: Curves.easeOut),
                     ),
-                    child: Center(
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: AppColors.blue.withOpacity(0.3),
+                          width: 1.5,
+                        ),
+                      ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('⚔️', style: TextStyle(fontSize: 80)),
-                          const SizedBox(height: 16),
+                          // Nabız animasyonu
+                          AnimatedBuilder(
+                            animation: _pulseAnim,
+                            builder: (_, __) => Transform.scale(
+                              scale: 1.0 + _pulseAnim.value * 0.06,
+                              child: Container(
+                                width: 120,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.blue.withOpacity(
+                                      0.08 + _pulseAnim.value * 0.06),
+                                  border: Border.all(
+                                    color: AppColors.blue.withOpacity(
+                                        0.3 + _pulseAnim.value * 0.2),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  CupertinoIcons.hand_point_left_fill,
+                                  color: AppColors.blue,
+                                  size: 48,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 24),
+
                           Text(
                             '${state.myTaps}',
                             style: const TextStyle(
-                              fontSize: 64,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF00FF88),
+                              color: AppColors.white,
+                              fontSize: 56,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -1,
                             ),
                           ),
+
+                          const SizedBox(height: 4),
+
                           const Text(
-                            'TAP',
-                            style: TextStyle(color: Colors.white38, fontSize: 14, letterSpacing: 6),
+                            'DOKUN VE KAZAN',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 2,
+                            ),
                           ),
                         ],
                       ),
@@ -127,163 +214,292 @@ class _BattleScreenState extends ConsumerState<BattleScreen> with TickerProvider
   }
 }
 
-class _TimerBar extends StatelessWidget {
-  final double progress;
+// ── Timer ─────────────────────────────────────────────────
+class _TimerSection extends StatelessWidget {
   final int seconds;
-
-  const _TimerBar({required this.progress, required this.seconds});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = progress > 0.5
-        ? const Color(0xFF00FF88)
-        : progress > 0.25
-            ? AppTheme.gold
-            : AppTheme.accent;
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('SÜRE', style: TextStyle(color: Colors.white54, fontSize: 11, letterSpacing: 3)),
-              Text('${seconds}s', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
-        LinearProgressIndicator(
-          value: progress,
-          backgroundColor: AppTheme.secondary,
-          valueColor: AlwaysStoppedAnimation(color),
-          minHeight: 4,
-        ),
-      ],
-    );
-  }
-}
-
-class _ScoreBox extends StatelessWidget {
-  final String label;
-  final int taps;
+  final double ratio;
   final Color color;
-  final TextAlign align;
 
-  const _ScoreBox({
-    required this.label,
-    required this.taps,
+  const _TimerSection({
+    required this.seconds,
+    required this.ratio,
     required this.color,
-    this.align = TextAlign.left,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment:
-          align == TextAlign.right ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 11, letterSpacing: 2)),
-        Text(
-          '$taps',
-          style: TextStyle(color: color, fontSize: 32, fontWeight: FontWeight.bold),
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'SAVAŞ',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 2,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    Icon(CupertinoIcons.timer, color: color, size: 14),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${seconds}s',
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: ratio,
+              backgroundColor: AppColors.surface,
+              valueColor: AlwaysStoppedAnimation(color),
+              minHeight: 5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
+// ── Skor Kartı ────────────────────────────────────────────
+class _ScoreCard extends StatelessWidget {
+  final String label;
+  final int taps;
+  final Color color;
+  final bool isLeading;
+
+  const _ScoreCard({
+    required this.label,
+    required this.taps,
+    required this.color,
+    required this.isLeading,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isLeading ? color.withOpacity(0.12) : AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isLeading ? color.withOpacity(0.4) : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isLeading ? color : AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (isLeading) ...[
+                  const SizedBox(width: 6),
+                  Icon(CupertinoIcons.arrow_up, color: color, size: 12),
+                ],
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '$taps',
+              style: TextStyle(
+                color: isLeading ? color : AppColors.white,
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            Text(
+              'dokunuş',
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontSize: 11),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Güç Barı ──────────────────────────────────────────────
 class _PowerBar extends StatelessWidget {
   final double myRatio;
   const _PowerBar({required this.myRatio});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const Text('GÜÇ ORANI', style: TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 3)),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: SizedBox(
-            height: 16,
-            child: Stack(
-              children: [
-                Container(color: AppTheme.accent),
-                FractionallySizedBox(
-                  widthFactor: myRatio,
-                  child: Container(color: const Color(0xFF00FF88)),
-                ),
-              ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        height: 10,
+        child: Stack(
+          children: [
+            Container(color: AppColors.red),
+            FractionallySizedBox(
+              widthFactor: myRatio,
+              child: Container(color: AppColors.blue),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
 
+// ── Sonuç Ekranı ──────────────────────────────────────────
 class _ResultScreen extends StatelessWidget {
   final BattleState state;
-  final String battleId;
-
-  const _ResultScreen({required this.state, required this.battleId});
+  const _ResultScreen({required this.state});
 
   @override
   Widget build(BuildContext context) {
     final won = state.won ?? false;
+    final color = won ? AppColors.green : AppColors.red;
 
     return Scaffold(
-      backgroundColor: AppTheme.primary,
+      backgroundColor: AppColors.black,
       body: SafeArea(
-        child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                won ? '🏆' : '💀',
-                style: const TextStyle(fontSize: 80),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                won ? 'ZAFER!' : 'YENILDIN',
-                style: TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                  color: won ? const Color(0xFF00FF88) : AppTheme.accent,
-                  letterSpacing: 6,
+              const Spacer(),
+
+              // Sonuç ikonu
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: color.withOpacity(0.4), width: 2),
+                ),
+                child: Icon(
+                  won ? CupertinoIcons.checkmark_alt : CupertinoIcons.xmark,
+                  color: color,
+                  size: 48,
                 ),
               ),
-              const SizedBox(height: 8),
-              if (won && state.pixelCaptured)
-                const Text(
-                  'Piksel senin!',
-                  style: TextStyle(color: Color(0xFF00FF88), fontSize: 16),
-                ),
+
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _StatBox(label: 'SENİN TAPLAR', value: '${state.myTaps}', color: const Color(0xFF00FF88)),
-                  const SizedBox(width: 32),
-                  _StatBox(label: 'DÜŞMAN TAPLAR', value: '${state.enemyTaps}', color: AppTheme.accent),
-                ],
+
+              Text(
+                won ? 'Zafer!' : 'Yenildin',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
               ),
+
+              const SizedBox(height: 8),
+
+              Text(
+                won && state.pixelCaptured
+                    ? 'Piksel senin kontrolünde!'
+                    : won
+                        ? 'Rakibi geçtim!'
+                        : 'Daha sert tıkla!',
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 16),
+              ),
+
               const SizedBox(height: 40),
+
+              // Skor karşılaştırma
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    _ResultStat(
+                      label: 'Senin',
+                      value: '${state.myTaps}',
+                      color: AppColors.blue,
+                    ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          const Text('VS',
+                              style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16)),
+                          const SizedBox(height: 4),
+                          const Text('dokunuş',
+                              style: TextStyle(
+                                  color: AppColors.textSecondary, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                    _ResultStat(
+                      label: 'Düşman',
+                      value: '${state.enemyTaps}',
+                      color: AppColors.red,
+                    ),
+                  ],
+                ),
+              ),
+
+              const Spacer(),
+
+              // Butonlar
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.accent,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                ),
+                    backgroundColor: color),
                 onPressed: () => context.go('/map'),
-                child: const Text('HARİTAYA DÖN', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 2)),
+                child: const Text('Haritaya Dön'),
               ),
+
               const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => context.go('/resources'),
-                child: const Text('ANA EKRANA DÖN', style: TextStyle(color: Colors.white54)),
+
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: TextButton(
+                  onPressed: () => context.go('/resources'),
+                  child: const Text(
+                    'Ana Sayfaya Dön',
+                    style: TextStyle(
+                        color: AppColors.textSecondary, fontSize: 16),
+                  ),
+                ),
               ),
+
+              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -292,19 +508,32 @@ class _ResultScreen extends StatelessWidget {
   }
 }
 
-class _StatBox extends StatelessWidget {
+class _ResultStat extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
 
-  const _StatBox({required this.label, required this.value, required this.color});
+  const _ResultStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 1)),
-        Text(value, style: TextStyle(color: color, fontSize: 28, fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 36,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Text(label,
+            style: const TextStyle(
+                color: AppColors.textSecondary, fontSize: 13)),
       ],
     );
   }

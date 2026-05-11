@@ -60,7 +60,12 @@ class _HomeTab extends StatelessWidget {
               : CustomScrollView(
                   slivers: [
                     SliverToBoxAdapter(child: _Header()),
-                    SliverToBoxAdapter(child: _ProfileCard(resources: state.resources!)),
+                    SliverToBoxAdapter(
+                      child: GestureDetector(
+                        onTap: () => context.push('/profile'),
+                        child: _ProfileCard(resources: state.resources!),
+                      ),
+                    ),
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),

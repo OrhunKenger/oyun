@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
+import '../../features/auth/presentation/screens/profile_screen.dart';
 import '../../features/resources/presentation/screens/resources_screen.dart';
 import '../../features/map/presentation/screens/map_screen.dart';
 import '../../features/battle/presentation/screens/battle_screen.dart';
@@ -14,6 +15,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (ctx, state) => const LoginScreen()),
       GoRoute(path: '/register', builder: (ctx, state) => const RegisterScreen()),
       GoRoute(path: '/resources', builder: (ctx, state) => const ResourcesScreen()),
+      GoRoute(path: '/profile', builder: (ctx, state) => const ProfileScreen()),
       GoRoute(path: '/map', builder: (ctx, state) => const MapScreen()),
       GoRoute(
         path: '/battle/:battleId',
