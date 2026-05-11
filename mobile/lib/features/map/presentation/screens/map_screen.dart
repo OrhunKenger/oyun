@@ -1,4 +1,6 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -15,9 +17,8 @@ class MapScreen extends ConsumerStatefulWidget {
 class _MapScreenState extends ConsumerState<MapScreen> {
   static const int gridSize = 50;
   static const double pixelSize = 14.0;
-
-  PixelModel? _selected;
   final TransformationController _transformCtrl = TransformationController();
+  PixelModel? _selected;
 
   @override
   void dispose() {
@@ -27,62 +28,38 @@ class _MapScreenState extends ConsumerState<MapScreen> {
 
   void _onPixelTap(PixelModel pixel, MapState state) {
     if (pixel.ownerId == state.myUserId) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bu piksel senin!'), backgroundColor: Color(0xFF00FF88)),
-      );
+      _showSnack('Bu piksel zaten senin!', AppColors.green);
       return;
     }
     setState(() => _selected = pixel);
-    _showAttackDialog(pixel, state);
+    _showAttackSheet(pixel, state);
   }
 
-  void _showAttackDialog(PixelModel pixel, MapState state) {
-    showDialog(
+  void _showSnack(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: const TextStyle(color: AppColors.white, fontWeight: FontWeight.w500)),
+      backgroundColor: color,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.all(16),
+    ));
+  }
+
+  void _showAttackSheet(PixelModel pixel, MapState state) {
+    showModalBottomSheet(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppTheme.secondary,
-        shape: RoundedRectangleBorder(
-          side: const BorderSide(color: AppTheme.accent, width: 2),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        title: Text(
-          pixel.ownerId == null ? 'BOŞ ARAZI' : '${pixel.ownerUsername ?? "Düşman"} SALDIRI',
-          style: const TextStyle(color: AppTheme.accent, letterSpacing: 2),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Konum: (${pixel.x}, ${pixel.y})', style: const TextStyle(color: Colors.white54)),
-            Text('Savunma: ${pixel.defensePower}', style: const TextStyle(color: Colors.white54)),
-            const SizedBox(height: 8),
-            const Text(
-              'Tıklama savaşı başlatmak istiyor musun?',
-              style: TextStyle(color: Colors.white),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('İPTAL', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
-            onPressed: () async {
-              Navigator.pop(context);
-              final battleId = await ref.read(mapProvider.notifier).startBattle(pixel.x, pixel.y);
-              if (battleId != null && mounted) {
-                context.go('/battle/$battleId');
-              } else if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Savaş başlatılamadı'), backgroundColor: AppTheme.accent),
-                );
-              }
-            },
-            child: const Text('SALDIRI BAŞLAT', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AttackSheet(
+        pixel: pixel,
+        onAttack: () async {
+          Navigator.pop(context);
+          final battleId = await ref.read(mapProvider.notifier).startBattle(pixel.x, pixel.y);
+          if (battleId != null && mounted) {
+            context.go('/battle/$battleId');
+          } else if (mounted) {
+            _showSnack('Savaş başlatılamadı', AppColors.red);
+          }
+        },
       ),
     );
   }
@@ -97,50 +74,143 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppTheme.primary,
-      appBar: AppBar(
-        backgroundColor: AppTheme.secondary,
-        title: const Text('DÜNYA HARİTASI', style: TextStyle(color: AppTheme.accent, letterSpacing: 3, fontSize: 14)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.go('/resources'),
-        ),
-        actions: [
-          if (state.isLoading)
-            const Center(child: Padding(
-              padding: EdgeInsets.only(right: 16),
-              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: AppTheme.accent, strokeWidth: 2)),
-            )),
-        ],
-      ),
-      body: Column(
-        children: [
-          _Legend(myUserId: state.myUserId),
-          Expanded(
-            child: InteractiveViewer(
-              transformationController: _transformCtrl,
-              minScale: 0.3,
-              maxScale: 5.0,
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: _PixelGrid(
-                  pixelMap: pixelMap,
-                  gridSize: gridSize,
-                  pixelSize: pixelSize,
-                  myUserId: state.myUserId,
-                  onTap: (p) => _onPixelTap(p, state),
-                  offsetX: state.offsetX,
-                  offsetY: state.offsetY,
+      backgroundColor: AppColors.black,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _MapHeader(
+              isLoading: state.isLoading,
+              onBack: () => context.go('/resources'),
+            ),
+            _StatsBar(state: state, pixelMap: pixelMap),
+            const _MapLegend(),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                child: Container(
+                  color: const Color(0xFF0A0A14),
+                  child: InteractiveViewer(
+                    transformationController: _transformCtrl,
+                    minScale: 0.3,
+                    maxScale: 6.0,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: _PixelGrid(
+                        pixelMap: pixelMap,
+                        gridSize: gridSize,
+                        pixelSize: pixelSize,
+                        myUserId: state.myUserId,
+                        onTap: (p) => _onPixelTap(p, state),
+                        offsetX: state.offsetX,
+                        offsetY: state.offsetY,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
+            _MapControls(
+              onMove: (dx, dy) {
+                final newX = (state.offsetX + dx * gridSize).clamp(0, 150).toInt();
+                final newY = (state.offsetY + dy * gridSize).clamp(0, 150).toInt();
+                ref.read(mapProvider.notifier).loadChunk(newX, newY);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Header ───────────────────────────────────────────────
+class _MapHeader extends StatelessWidget {
+  final bool isLoading;
+  final VoidCallback onBack;
+
+  const _MapHeader({required this.isLoading, required this.onBack});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: onBack,
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(CupertinoIcons.chevron_left,
+                  color: AppColors.white, size: 18),
+            ),
           ),
-          _MapControls(
-            onMove: (dx, dy) {
-              final newX = (state.offsetX + dx * gridSize).clamp(0, 150).toInt();
-              final newY = (state.offsetY + dy * gridSize).clamp(0, 150).toInt();
-              ref.read(mapProvider.notifier).loadChunk(newX, newY);
-            },
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Text(
+              'Dünya Haritası',
+              style: TextStyle(
+                color: AppColors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+              ),
+            ),
+          ),
+          if (isLoading)
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                  color: AppColors.blue, strokeWidth: 2),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── İstatistik Bar ───────────────────────────────────────
+class _StatsBar extends StatelessWidget {
+  final MapState state;
+  final Map<String, PixelModel> pixelMap;
+
+  const _StatsBar({required this.state, required this.pixelMap});
+
+  @override
+  Widget build(BuildContext context) {
+    final myPixels =
+        pixelMap.values.where((p) => p.ownerId == state.myUserId).length;
+    final occupied =
+        pixelMap.values.where((p) => p.ownerId != null).length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      child: Row(
+        children: [
+          _StatChip(
+            icon: CupertinoIcons.square_grid_2x2,
+            label: 'Piksellerim',
+            value: '$myPixels',
+            color: AppColors.green,
+          ),
+          const SizedBox(width: 10),
+          _StatChip(
+            icon: CupertinoIcons.flame,
+            label: 'Aktif Alan',
+            value: '$occupied',
+            color: AppColors.red,
+          ),
+          const SizedBox(width: 10),
+          _StatChip(
+            icon: CupertinoIcons.location,
+            label: 'Konum',
+            value: '${state.offsetX},${state.offsetY}',
+            color: AppColors.blue,
           ),
         ],
       ),
@@ -148,6 +218,54 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 }
 
+class _StatChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _StatChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 16),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: const TextStyle(
+                color: AppColors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              label,
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontSize: 10),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Piksel Grid ──────────────────────────────────────────
 class _PixelGrid extends StatelessWidget {
   final Map<String, PixelModel> pixelMap;
   final int gridSize;
@@ -214,10 +332,31 @@ class _PixelGridPainter extends CustomPainter {
     required this.offsetY,
   });
 
+  // Savunma gücünü 0.0-1.0 arasına normalize et (log ölçeği)
+  double _defenseIntensity(int defensePower) {
+    if (defensePower <= 0) return 0.0;
+    // 10 → ~0.2, 50 → ~0.5, 200 → ~0.8, 500+ → ~1.0
+    return (math.log(defensePower + 1) / math.log(501)).clamp(0.0, 1.0);
+  }
+
+  Color _pixelColor(PixelModel? pixel, String? myUserId) {
+    if (pixel == null || pixel.ownerId == null) return const Color(0xFF0D0D1A);
+
+    final t = _defenseIntensity(pixel.defensePower);
+
+    if (pixel.ownerId == myUserId) {
+      // Benim: koyu yeşilden parlak yeşile
+      return Color.lerp(const Color(0xFF0A3020), const Color(0xFF00FF88), t)!;
+    } else {
+      // Düşman: koyu kırmızıdan parlak kırmızıya
+      return Color.lerp(const Color(0xFF2A0808), const Color(0xFFFF3B30), t)!;
+    }
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final borderPaint = Paint()
-      ..color = AppTheme.pixelBorder.withOpacity(0.3)
+      ..color = const Color(0xFF1C1C2E)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.5;
 
@@ -226,12 +365,10 @@ class _PixelGridPainter extends CustomPainter {
         final x = offsetX + col;
         final y = offsetY + row;
         final pixel = pixelMap['$x,$y'];
+        final rect = Rect.fromLTWH(
+            col * pixelSize, row * pixelSize, pixelSize, pixelSize);
 
-        final rect = Rect.fromLTWH(col * pixelSize, row * pixelSize, pixelSize, pixelSize);
-
-        final fillPaint = Paint()
-          ..color = pixel?.toColor(myUserId) ?? const Color(0xFF0D0D1A);
-        canvas.drawRect(rect, fillPaint);
+        canvas.drawRect(rect, Paint()..color = _pixelColor(pixel, myUserId));
         canvas.drawRect(rect, borderPaint);
       }
     }
@@ -239,42 +376,219 @@ class _PixelGridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PixelGridPainter old) =>
-      old.pixelMap != pixelMap || old.offsetX != offsetX || old.offsetY != offsetY;
+      old.pixelMap != pixelMap ||
+      old.offsetX != offsetX ||
+      old.offsetY != offsetY;
 }
 
-class _Legend extends StatelessWidget {
-  final String? myUserId;
-  const _Legend({this.myUserId});
+// ── Saldırı Bottom Sheet ─────────────────────────────────
+class _AttackSheet extends StatelessWidget {
+  final PixelModel pixel;
+  final VoidCallback onAttack;
+
+  const _AttackSheet({required this.pixel, required this.onAttack});
 
   @override
   Widget build(BuildContext context) {
+    final isEmpty = pixel.ownerId == null;
+
     return Container(
-      color: AppTheme.secondary,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
+      margin: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _dot(const Color(0xFF00FF88)),
-          const SizedBox(width: 4),
-          const Text('Senin', style: TextStyle(color: Colors.white54, fontSize: 11)),
-          const SizedBox(width: 16),
-          _dot(const Color(0xFFE94560)),
-          const SizedBox(width: 4),
-          const Text('Düşman', style: TextStyle(color: Colors.white54, fontSize: 11)),
-          const SizedBox(width: 16),
-          _dot(const Color(0xFF0D0D1A)),
-          const SizedBox(width: 4),
-          const Text('Boş', style: TextStyle(color: Colors.white54, fontSize: 11)),
+          const SizedBox(height: 8),
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.surface3,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // İkon
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: isEmpty
+                  ? AppColors.green.withOpacity(0.12)
+                  : AppColors.red.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(
+              isEmpty ? CupertinoIcons.flag : CupertinoIcons.bolt_fill,
+              color: isEmpty ? AppColors.green : AppColors.red,
+              size: 30,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          Text(
+            isEmpty ? 'Boş Arazi' : pixel.ownerUsername ?? 'Düşman Toprağı',
+            style: const TextStyle(
+              color: AppColors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Konum: (${pixel.x}, ${pixel.y})',
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+          ),
+
+          if (!isEmpty) ...[
+            const SizedBox(height: 16),
+            _DefenseBar(defensePower: pixel.defensePower),
+          ],
+
+          const SizedBox(height: 28),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isEmpty ? AppColors.green : AppColors.red,
+              ),
+              onPressed: onAttack,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    isEmpty ? CupertinoIcons.flag_fill : CupertinoIcons.bolt_fill,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isEmpty ? 'Toprağı Ele Geçir' : 'Saldırıya Geç',
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Vazgeç',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+          ),
+
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
-
-  Widget _dot(Color c) => Container(
-        width: 12, height: 12,
-        decoration: BoxDecoration(color: c, border: Border.all(color: Colors.white24)),
-      );
 }
 
+// ── Savunma Gücü Bar ─────────────────────────────────────
+class _DefenseBar extends StatelessWidget {
+  final int defensePower;
+  const _DefenseBar({required this.defensePower});
+
+  double get _fill => (math.log(defensePower + 1) / math.log(501)).clamp(0.0, 1.0);
+
+  Color get _color {
+    if (_fill < 0.33) return AppColors.green;
+    if (_fill < 0.66) return AppColors.yellow;
+    return AppColors.red;
+  }
+
+  String get _label {
+    if (_fill < 0.33) return 'Zayıf savunma';
+    if (_fill < 0.66) return 'Orta savunma';
+    return 'Güçlü savunma';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(_label,
+                  style: TextStyle(color: _color, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text('Güç: $defensePower',
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: _fill,
+              backgroundColor: AppColors.surface3,
+              valueColor: AlwaysStoppedAnimation<Color>(_color),
+              minHeight: 6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Renk Açıklaması ──────────────────────────────────────
+class _MapLegend extends StatelessWidget {
+  const _MapLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Row(
+        children: [
+          _LegendDot(color: const Color(0xFF00FF88), label: 'Senin'),
+          const SizedBox(width: 16),
+          _LegendDot(color: const Color(0xFFFF3B30), label: 'Düşman'),
+          const SizedBox(width: 16),
+          _LegendDot(color: const Color(0xFF0D0D1A), label: 'Boş'),
+          const Spacer(),
+          const Icon(CupertinoIcons.info_circle, color: AppColors.textTertiary, size: 13),
+          const SizedBox(width: 4),
+          const Text('Renk yoğunluğu = savunma',
+              style: TextStyle(color: AppColors.textTertiary, fontSize: 10)),
+        ],
+      ),
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _LegendDot({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 10, height: 10,
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+        ),
+        const SizedBox(width: 5),
+        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+      ],
+    );
+  }
+}
+
+// ── Yön Kontrolleri ──────────────────────────────────────
 class _MapControls extends StatelessWidget {
   final void Function(int dx, int dy) onMove;
   const _MapControls({required this.onMove});
@@ -282,28 +596,39 @@ class _MapControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppTheme.secondary,
-      padding: const EdgeInsets.all(8),
+      color: AppColors.black,
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _navBtn(Icons.arrow_back, () => onMove(-1, 0)),
+          _navBtn(CupertinoIcons.chevron_left, () => onMove(-1, 0)),
+          const SizedBox(width: 8),
           Column(
             children: [
-              _navBtn(Icons.arrow_upward, () => onMove(0, -1)),
-              const SizedBox(height: 4),
-              _navBtn(Icons.arrow_downward, () => onMove(0, 1)),
+              _navBtn(CupertinoIcons.chevron_up, () => onMove(0, -1)),
+              const SizedBox(height: 8),
+              _navBtn(CupertinoIcons.chevron_down, () => onMove(0, 1)),
             ],
           ),
-          _navBtn(Icons.arrow_forward, () => onMove(1, 0)),
+          const SizedBox(width: 8),
+          _navBtn(CupertinoIcons.chevron_right, () => onMove(1, 0)),
         ],
       ),
     );
   }
 
-  Widget _navBtn(IconData icon, VoidCallback onTap) => IconButton(
-        onPressed: onTap,
-        icon: Icon(icon, color: Colors.white70, size: 20),
-        style: IconButton.styleFrom(backgroundColor: AppTheme.pixelBorder),
-      );
+  Widget _navBtn(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: AppColors.white, size: 18),
+      ),
+    );
+  }
 }

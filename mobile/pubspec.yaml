@@ -1,5 +1,5 @@
-name: pixel_war
-description: "Pixel War - Competitive pixel battle game"
+name: takeover
+description: "Takeover - Conquer territories, dominate the map"
 publish_to: 'none'
 
 version: 1.0.0+1

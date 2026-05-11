@@ -208,7 +208,7 @@ class _Header extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text(
-            'Pixel War',
+            'Takeover',
             style: TextStyle(
               color: AppColors.white,
               fontSize: 22,

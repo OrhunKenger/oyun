@@ -4,17 +4,17 @@ import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 
 void main() {
-  runApp(const ProviderScope(child: PixelWarApp()));
+  runApp(const ProviderScope(child: TakeoverApp()));
 }
 
-class PixelWarApp extends ConsumerWidget {
-  const PixelWarApp({super.key});
+class TakeoverApp extends ConsumerWidget {
+  const TakeoverApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
-      title: 'Pixel War',
+      title: 'Takeover',
       theme: AppTheme.dark,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
