@@ -109,7 +109,14 @@ class ResourcesNotifier extends StateNotifier<ResourcesState> {
     state = state.copyWith(pendingTaps: {});
     for (final entry in pending.entries) {
       try {
-        await _ds.tap(entry.key, entry.value);
+        final result = await _ds.tap(entry.key, entry.value);
+        // Sunucunun gerçek miktarıyla lokali düzelt
+        final serverTotal = (result['total'] as num?)?.toDouble();
+        if (serverTotal != null && state.resources != null) {
+          state = state.copyWith(
+            resources: _setAmount(state.resources!, entry.key, serverTotal),
+          );
+        }
       } catch (_) {}
     }
   }
@@ -181,6 +188,16 @@ class ResourcesNotifier extends StateNotifier<ResourcesState> {
       case 'food': return r.food.tapPower;
       default: return 1;
     }
+  }
+
+  AllResourcesModel _setAmount(AllResourcesModel r, String type, double amount) {
+    return AllResourcesModel(
+      gold: type == 'gold' ? r.gold.copyWith(amount: amount) : r.gold,
+      wood: type == 'wood' ? r.wood.copyWith(amount: amount) : r.wood,
+      stone: type == 'stone' ? r.stone.copyWith(amount: amount) : r.stone,
+      iron: type == 'iron' ? r.iron.copyWith(amount: amount) : r.iron,
+      food: type == 'food' ? r.food.copyWith(amount: amount) : r.food,
+    );
   }
 
   AllResourcesModel _addAmount(AllResourcesModel r, String type, double amount) {
