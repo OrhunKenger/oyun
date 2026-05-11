@@ -8,6 +8,36 @@ final battleProvider = StateNotifierProvider.family<BattleNotifier, BattleState,
   (ref, battleId) => BattleNotifier(ApiClient().dio, battleId),
 );
 
+class DamageBreakdown {
+  final double totalDamage;
+  final double damageRatio;
+  final double resourcesLost;
+  final int soldiersLost;
+  final bool buildingDegraded;
+  final int pixelsTransferred;
+  final bool defenderEliminated;
+
+  const DamageBreakdown({
+    required this.totalDamage,
+    required this.damageRatio,
+    required this.resourcesLost,
+    required this.soldiersLost,
+    required this.buildingDegraded,
+    required this.pixelsTransferred,
+    required this.defenderEliminated,
+  });
+
+  factory DamageBreakdown.fromJson(Map<String, dynamic> j) => DamageBreakdown(
+        totalDamage: (j['total_damage'] as num).toDouble(),
+        damageRatio: (j['damage_ratio'] as num).toDouble(),
+        resourcesLost: (j['resources_lost'] as num).toDouble(),
+        soldiersLost: (j['soldiers_lost'] as num? ?? 0).toInt(),
+        buildingDegraded: j['building_degraded'] as bool? ?? false,
+        pixelsTransferred: (j['pixels_transferred'] as num? ?? 0).toInt(),
+        defenderEliminated: j['defender_eliminated'] as bool? ?? false,
+      );
+}
+
 class BattleState {
   final int myTaps;
   final int enemyTaps;
@@ -15,6 +45,10 @@ class BattleState {
   final bool isFinished;
   final bool? won;
   final bool pixelCaptured;
+  final DamageBreakdown? damage;
+  final String? defenderUsername;
+  final double? defenderPower;
+  final double? attackerPower;
 
   const BattleState({
     this.myTaps = 0,
@@ -23,6 +57,10 @@ class BattleState {
     this.isFinished = false,
     this.won,
     this.pixelCaptured = false,
+    this.damage,
+    this.defenderUsername,
+    this.defenderPower,
+    this.attackerPower,
   });
 
   BattleState copyWith({
@@ -32,6 +70,10 @@ class BattleState {
     bool? isFinished,
     bool? won,
     bool? pixelCaptured,
+    DamageBreakdown? damage,
+    String? defenderUsername,
+    double? defenderPower,
+    double? attackerPower,
   }) =>
       BattleState(
         myTaps: myTaps ?? this.myTaps,
@@ -40,6 +82,10 @@ class BattleState {
         isFinished: isFinished ?? this.isFinished,
         won: won ?? this.won,
         pixelCaptured: pixelCaptured ?? this.pixelCaptured,
+        damage: damage ?? this.damage,
+        defenderUsername: defenderUsername ?? this.defenderUsername,
+        defenderPower: defenderPower ?? this.defenderPower,
+        attackerPower: attackerPower ?? this.attackerPower,
       );
 }
 
@@ -94,11 +140,14 @@ class BattleNotifier extends StateNotifier<BattleState> {
     await _flushTaps();
     try {
       final res = await _dio.post('/battle/$battleId/finish');
-      final won = res.data['winner_id'] != null;
+      final data = res.data as Map<String, dynamic>;
+      final won = data['winner_id'] != null;
+      final dmgJson = data['damage'] as Map<String, dynamic>?;
       state = state.copyWith(
         isFinished: true,
         won: won,
-        pixelCaptured: res.data['pixel_captured'] ?? false,
+        pixelCaptured: data['pixel_captured'] ?? false,
+        damage: dmgJson != null ? DamageBreakdown.fromJson(dmgJson) : null,
       );
     } catch (_) {
       state = state.copyWith(isFinished: true, won: state.myTaps > state.enemyTaps);

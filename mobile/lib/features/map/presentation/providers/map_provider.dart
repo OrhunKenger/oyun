@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../../core/network/api_client.dart';
 import '../../data/models/pixel_model.dart';
 
@@ -9,14 +8,14 @@ final mapProvider = StateNotifierProvider<MapNotifier, MapState>((ref) {
 });
 
 class MapState {
-  final List<PixelModel> pixels;
+  final List<TerritoryModel> territories;
   final bool isLoading;
   final String? myUserId;
   final int offsetX;
   final int offsetY;
 
   const MapState({
-    this.pixels = const [],
+    this.territories = const [],
     this.isLoading = false,
     this.myUserId,
     this.offsetX = 0,
@@ -24,14 +23,14 @@ class MapState {
   });
 
   MapState copyWith({
-    List<PixelModel>? pixels,
+    List<TerritoryModel>? territories,
     bool? isLoading,
     String? myUserId,
     int? offsetX,
     int? offsetY,
   }) =>
       MapState(
-        pixels: pixels ?? this.pixels,
+        territories: territories ?? this.territories,
         isLoading: isLoading ?? this.isLoading,
         myUserId: myUserId ?? this.myUserId,
         offsetX: offsetX ?? this.offsetX,
@@ -41,7 +40,6 @@ class MapState {
 
 class MapNotifier extends StateNotifier<MapState> {
   final Dio _dio;
-  final _storage = const FlutterSecureStorage();
 
   MapNotifier(this._dio) : super(const MapState()) {
     _loadUserId();
@@ -49,7 +47,6 @@ class MapNotifier extends StateNotifier<MapState> {
   }
 
   Future<void> _loadUserId() async {
-    // Token'dan user id çek — basit çözüm: /auth/me endpoint'i
     try {
       final res = await _dio.get('/auth/me');
       state = state.copyWith(myUserId: res.data['id']);
@@ -65,10 +62,10 @@ class MapNotifier extends StateNotifier<MapState> {
         'width': 50,
         'height': 50,
       });
-      final pixels = (res.data['pixels'] as List)
-          .map((p) => PixelModel.fromJson(p))
+      final players = (res.data['players'] as List)
+          .map((p) => TerritoryModel.fromJson(p))
           .toList();
-      state = state.copyWith(pixels: pixels, isLoading: false, offsetX: x, offsetY: y);
+      state = state.copyWith(territories: players, isLoading: false, offsetX: x, offsetY: y);
     } catch (e) {
       state = state.copyWith(isLoading: false);
     }
@@ -81,5 +78,13 @@ class MapNotifier extends StateNotifier<MapState> {
     } catch (e) {
       return null;
     }
+  }
+
+  /// (x,y) koordinatına sahip olan territory'yi bul
+  TerritoryModel? ownerAt(int x, int y) {
+    for (final t in state.territories) {
+      if (t.contains(x, y)) return t;
+    }
+    return null;
   }
 }

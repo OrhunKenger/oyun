@@ -28,6 +28,11 @@ class User(Base):
     pixel_count = Column(Integer, default=0)
     total_score = Column(Integer, default=0)
     tap_power = Column(Integer, default=1)
+    power_score = Column(Float, default=0.0)
+
+    # Harita koordinatı (ilk kaynak toplandığında atanır)
+    home_x = Column(Integer, nullable=True)
+    home_y = Column(Integer, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

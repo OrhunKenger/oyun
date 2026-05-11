@@ -11,12 +11,18 @@ from app.features.battle.schemas import (
     BattleTapRequest, BattleTapResponse, BattleResult
 )
 from app.features.map.repository import MapRepository
+from app.features.resources.repository import ResourceRepository
 
 router = APIRouter()
 
 
 def get_service(db: AsyncSession = Depends(get_db)) -> BattleService:
-    return BattleService(BattleRepository(db), MapRepository(db), AuthRepository(db))
+    return BattleService(
+        BattleRepository(db),
+        MapRepository(db),
+        AuthRepository(db),
+        ResourceRepository(db),
+    )
 
 
 @router.post("/start", response_model=StartBattleResponse)

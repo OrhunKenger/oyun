@@ -12,6 +12,16 @@ class PixelInfo(BaseModel):
         from_attributes = True
 
 
+class PlayerTerritory(BaseModel):
+    user_id: str
+    username: str
+    home_x: int
+    home_y: int
+    power_score: float
+    territory_radius: int
+    color_hue: int  # 0-360, her oyuncuya sabit renk tonu
+
+
 class MapChunkRequest(BaseModel):
     x_start: int
     y_start: int
@@ -20,7 +30,7 @@ class MapChunkRequest(BaseModel):
 
 
 class MapChunkResponse(BaseModel):
-    pixels: list[PixelInfo]
+    players: list[PlayerTerritory]
     x_start: int
     y_start: int
     width: int

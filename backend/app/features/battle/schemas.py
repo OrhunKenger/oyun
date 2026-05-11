@@ -33,6 +33,16 @@ class BattleTapResponse(BaseModel):
     status: BattleStatus
 
 
+class DamageBreakdown(BaseModel):
+    total_damage: float
+    damage_ratio: float
+    resources_lost: float
+    soldiers_lost: int
+    building_degraded: str | None  # Hasar alan bina tipi
+    pixels_transferred: int
+    defender_eliminated: bool  # Tamamen sıfırlandı mı?
+
+
 class BattleResult(BaseModel):
     battle_id: str
     winner_id: str | None
@@ -40,3 +50,4 @@ class BattleResult(BaseModel):
     defender_taps: int
     pixel_captured: bool
     status: BattleStatus
+    damage: DamageBreakdown | None = None

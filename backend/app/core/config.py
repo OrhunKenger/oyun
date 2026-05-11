@@ -15,10 +15,19 @@ class Settings(BaseSettings):
     apple_client_id: str
 
     # Oyun sabitleri
-    map_width: int = 200
-    map_height: int = 200
+    map_width: int = 2000
+    map_height: int = 2000
     season_duration_days: int = 28
     battle_duration_seconds: int = 30
+
+    # Savaş
+    battle_base_damage: float = 10.0
+    home_clearance: int = 10  # Yeni ev için minimum boşluk
+
+    # Güç formülü ağırlıkları
+    power_weight_resources: float = 0.20
+    power_weight_buildings: float = 0.30
+    power_weight_soldiers: float = 0.50
 
     class Config:
         env_file = ".env"

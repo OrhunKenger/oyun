@@ -7,11 +7,19 @@ class ResourceType(str, Enum):
     wood = "wood"
     stone = "stone"
     iron = "iron"
+    food = "food"
+
+
+class SoldierType(str, Enum):
+    swordsman = "swordsman"
+    archer = "archer"
+    knight = "knight"
+    catapult = "catapult"
 
 
 class TapRequest(BaseModel):
     resource_type: ResourceType
-    tap_count: int = 1  # çoklu tap (hızlı tıklama için batch)
+    tap_count: int = 1
 
 
 class TapResponse(BaseModel):
@@ -38,6 +46,7 @@ class AllResourcesResponse(BaseModel):
     wood: ResourceState
     stone: ResourceState
     iron: ResourceState
+    food: ResourceState
 
 
 class UpgradeTapRequest(BaseModel):
@@ -48,21 +57,22 @@ class UpgradeTapResponse(BaseModel):
     resource_type: ResourceType
     new_tap_power: int
     new_level: int
-    cost: dict  # hangi kaynaktan ne kadar harcandı
+    cost: dict
 
 
 class BuildingInfo(BaseModel):
     building_type: str
     level: int
-    resource_type: ResourceType
+    resource_type: str | None
     production_rate: float
+    defense_contribution: float
 
     class Config:
         from_attributes = True
 
 
 class BuildRequest(BaseModel):
-    building_type: str  # sawmill | quarry | forge | treasury
+    building_type: str
 
 
 class BuildResponse(BaseModel):
@@ -73,3 +83,31 @@ class BuildResponse(BaseModel):
 
 class GetBuildingsResponse(BaseModel):
     buildings: list[BuildingInfo]
+
+
+class SoldierInfo(BaseModel):
+    soldier_type: SoldierType
+    count: int
+    attack_power: int
+    defense_power: int
+    train_cost: dict
+
+    class Config:
+        from_attributes = True
+
+
+class TrainRequest(BaseModel):
+    soldier_type: SoldierType
+    amount: int = 1
+
+
+class TrainResponse(BaseModel):
+    soldier_type: SoldierType
+    new_count: int
+    costs_paid: dict
+
+
+class GetSoldiersResponse(BaseModel):
+    soldiers: list[SoldierInfo]
+    total_attack: int
+    total_defense: int

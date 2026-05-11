@@ -11,7 +11,7 @@ if config.config_file_name is not None:
 
 from app.core.database import Base
 from app.features.auth.model import User
-from app.features.resources.model import PlayerResource, Building
+from app.features.resources.model import PlayerResource, Building, PlayerSoldier
 from app.features.map.model import MapPixel
 from app.features.battle.model import Battle
 

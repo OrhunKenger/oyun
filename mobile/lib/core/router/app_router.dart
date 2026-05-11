@@ -19,7 +19,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/map', builder: (ctx, state) => const MapScreen()),
       GoRoute(
         path: '/battle/:battleId',
-        builder: (ctx, state) => BattleScreen(battleId: state.pathParameters['battleId']!),
+        builder: (ctx, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return BattleScreen(
+            battleId: state.pathParameters['battleId']!,
+            defenderUsername: extra?['defenderUsername'] as String?,
+            defenderPower: extra?['defenderPower'] as double?,
+          );
+        },
       ),
       GoRoute(path: '/leaderboard', builder: (ctx, state) => const LeaderboardScreen()),
     ],

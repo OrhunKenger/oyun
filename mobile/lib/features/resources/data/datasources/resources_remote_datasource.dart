@@ -37,4 +37,17 @@ class ResourcesRemoteDatasource {
     });
     return res.data;
   }
+
+  Future<SoldiersResponse> getSoldiers() async {
+    final res = await _dio.get('/resources/soldiers');
+    return SoldiersResponse.fromJson(res.data);
+  }
+
+  Future<Map<String, dynamic>> trainSoldiers(String soldierType, int amount) async {
+    final res = await _dio.post('/resources/train', data: {
+      'soldier_type': soldierType,
+      'amount': amount,
+    });
+    return res.data;
+  }
 }

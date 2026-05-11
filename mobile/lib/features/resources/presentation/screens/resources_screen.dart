@@ -115,6 +115,12 @@ class _HomeTab extends StatelessWidget {
                             color: const Color(0xFF636366),
                             ref: ref,
                           ),
+                          const SizedBox(height: 12),
+                          _FoodTile(
+                            resource: state.resources!.food,
+                            soldiers: state.soldiers,
+                            ref: ref,
+                          ),
                           const SizedBox(height: 32),
                         ]),
                       ),
@@ -188,7 +194,164 @@ class _HomeTab extends StatelessWidget {
                             resources: state.resources!,
                             ref: ref,
                           ),
+                          const SizedBox(height: 12),
+                          _BuildingTile(
+                            buildingType: 'farm',
+                            label: 'Çiftlik',
+                            icon: '🌾',
+                            description: 'Otomatik Yiyecek üretir',
+                            costLabel: '40 Odun + 30 Taş',
+                            resourceType: 'food',
+                            color: const Color(0xFF32D74B),
+                            buildings: state.buildings,
+                            resources: state.resources!,
+                            ref: ref,
+                          ),
+                          const SizedBox(height: 12),
+                          _BuildingTile(
+                            buildingType: 'barracks',
+                            label: 'Kışla',
+                            icon: '🏯',
+                            description: 'Piyade & Okçu eğitimi',
+                            costLabel: '60 Odun + 40 Taş',
+                            resourceType: 'wood',
+                            color: AppColors.blue,
+                            buildings: state.buildings,
+                            resources: state.resources!,
+                            ref: ref,
+                          ),
+                          const SizedBox(height: 12),
+                          _BuildingTile(
+                            buildingType: 'stable',
+                            label: 'Ahır',
+                            icon: '🐎',
+                            description: 'Süvari eğitimi',
+                            costLabel: '80 Odun + 50 Demir',
+                            resourceType: 'iron',
+                            color: const Color(0xFFBF5AF2),
+                            buildings: state.buildings,
+                            resources: state.resources!,
+                            ref: ref,
+                          ),
+                          const SizedBox(height: 12),
+                          _BuildingTile(
+                            buildingType: 'workshop',
+                            label: 'Atölye',
+                            icon: '⚒️',
+                            description: 'Mancınık eğitimi',
+                            costLabel: '60 Demir + 80 Taş',
+                            resourceType: 'iron',
+                            color: const Color(0xFFFF9F0A),
+                            buildings: state.buildings,
+                            resources: state.resources!,
+                            ref: ref,
+                          ),
+                          const SizedBox(height: 12),
+                          _BuildingTile(
+                            buildingType: 'walls',
+                            label: 'Sur',
+                            icon: '🧱',
+                            description: 'Savunma gücü arttırır',
+                            costLabel: '100 Taş + 60 Demir',
+                            resourceType: 'stone',
+                            color: const Color(0xFF8E8E93),
+                            buildings: state.buildings,
+                            resources: state.resources!,
+                            ref: ref,
+                          ),
                           const SizedBox(height: 32),
+                        ]),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                        child: Row(
+                          children: [
+                            Text(
+                              'ASKERLERx',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.red.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'ATK ${state.totalAttack}  DEF ${state.totalDefense}',
+                                style: const TextStyle(
+                                  color: AppColors.red,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                      sliver: SliverList(
+                        delegate: SliverChildListDelegate([
+                          _SoldierTile(
+                            soldierType: 'swordsman',
+                            label: 'Piyade',
+                            icon: '⚔️',
+                            description: 'Dengeli — ATK 3 / DEF 3',
+                            trainCost: '10 Altın + 5 Demir',
+                            requiredBuilding: 'Kışla',
+                            color: AppColors.blue,
+                            soldiers: state.soldiers,
+                            buildings: state.buildings,
+                            ref: ref,
+                          ),
+                          const SizedBox(height: 12),
+                          _SoldierTile(
+                            soldierType: 'archer',
+                            label: 'Okçu',
+                            icon: '🏹',
+                            description: 'Yüksek saldırı — ATK 5 / DEF 1',
+                            trainCost: '10 Altın + 10 Odun',
+                            requiredBuilding: 'Kışla',
+                            color: const Color(0xFF32D74B),
+                            soldiers: state.soldiers,
+                            buildings: state.buildings,
+                            ref: ref,
+                          ),
+                          const SizedBox(height: 12),
+                          _SoldierTile(
+                            soldierType: 'knight',
+                            label: 'Süvari',
+                            icon: '🐴',
+                            description: 'En güçlü — ATK 8 / DEF 4',
+                            trainCost: '30 Altın + 15 Demir + 10 Yiyecek',
+                            requiredBuilding: 'Ahır',
+                            color: const Color(0xFFBF5AF2),
+                            soldiers: state.soldiers,
+                            buildings: state.buildings,
+                            ref: ref,
+                          ),
+                          const SizedBox(height: 12),
+                          _SoldierTile(
+                            soldierType: 'catapult',
+                            label: 'Mancınık',
+                            icon: '💣',
+                            description: 'Binalara 3× hasar — ATK 12 / DEF 0',
+                            trainCost: '50 Odun + 30 Demir',
+                            requiredBuilding: 'Atölye',
+                            color: const Color(0xFFFF9F0A),
+                            soldiers: state.soldiers,
+                            buildings: state.buildings,
+                            ref: ref,
+                          ),
                         ]),
                       ),
                     ),
@@ -987,6 +1150,492 @@ class _BuildingTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Food Tile (tıklanamaz, sadece üretim/tüketim göster) ─
+class _FoodTile extends StatelessWidget {
+  final ResourceState resource;
+  final List<SoldierModel> soldiers;
+  final WidgetRef ref;
+
+  const _FoodTile({
+    required this.resource,
+    required this.soldiers,
+    required this.ref,
+  });
+
+  String _fmt(double v) {
+    if (v >= 1e9) return '${(v / 1e9).toStringAsFixed(1)}B';
+    if (v >= 1e6) return '${(v / 1e6).toStringAsFixed(1)}M';
+    if (v >= 1e3) return '${(v / 1e3).toStringAsFixed(1)}K';
+    return v.toStringAsFixed(0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const color = Color(0xFF32D74B);
+    final totalSoldiers = soldiers.fold<int>(0, (s, m) => s + m.count);
+    final drain = totalSoldiers * 0.01;
+    final net = resource.autoRate - drain;
+    final isShortage = net < 0;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: isShortage
+            ? Border.all(color: AppColors.red.withOpacity(0.5), width: 1)
+            : null,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Center(
+              child: Text('🍖', style: TextStyle(fontSize: 26)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Yiyecek',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _fmt(resource.amount),
+                  style: const TextStyle(
+                    color: AppColors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '+${resource.tapPower}/tık',
+                  style: const TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                net >= 0
+                    ? '+${net.toStringAsFixed(2)}/s'
+                    : '${net.toStringAsFixed(2)}/s',
+                style: TextStyle(
+                  color: isShortage ? AppColors.red : AppColors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: isShortage ? FontWeight.w700 : FontWeight.w400,
+                ),
+              ),
+              if (isShortage)
+                const Text(
+                  '⚠️ Asker firarar!',
+                  style: TextStyle(color: AppColors.red, fontSize: 10),
+                ),
+            ],
+          ),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: () {
+              ref.read(resourcesProvider.notifier).tap('food');
+            },
+            child: const Icon(CupertinoIcons.hand_point_left_fill,
+                color: AppColors.textTertiary, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Asker Tile ───────────────────────────────────────────
+class _SoldierTile extends StatelessWidget {
+  final String soldierType;
+  final String label;
+  final String icon;
+  final String description;
+  final String trainCost;
+  final String requiredBuilding;
+  final Color color;
+  final List<SoldierModel> soldiers;
+  final List<BuildingModel> buildings;
+  final WidgetRef ref;
+
+  const _SoldierTile({
+    required this.soldierType,
+    required this.label,
+    required this.icon,
+    required this.description,
+    required this.trainCost,
+    required this.requiredBuilding,
+    required this.color,
+    required this.soldiers,
+    required this.buildings,
+    required this.ref,
+  });
+
+  SoldierModel? get _soldier =>
+      soldiers.where((s) => s.soldierType == soldierType).firstOrNull;
+
+  bool get _hasBuilding {
+    final buildingMap = <String, String>{
+      'swordsman': 'barracks',
+      'archer': 'barracks',
+      'knight': 'stable',
+      'catapult': 'workshop',
+    };
+    final required = buildingMap[soldierType];
+    if (required == null) return false;
+    return buildings.any((b) => b.buildingType == required && b.level > 0);
+  }
+
+  void _showTrainSheet(BuildContext context) {
+    int amount = 5;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(icon, style: const TextStyle(fontSize: 32)),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$label Eğit',
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        description,
+                        style: const TextStyle(
+                            color: AppColors.textSecondary, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.black,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Miktar',
+                            style: TextStyle(color: AppColors.textSecondary)),
+                        Row(
+                          children: [
+                            _AmountBtn(
+                              icon: CupertinoIcons.minus,
+                              onTap: () =>
+                                  setSheet(() => amount = (amount - 1).clamp(1, 100)),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Text(
+                                '$amount',
+                                style: const TextStyle(
+                                  color: AppColors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            _AmountBtn(
+                              icon: CupertinoIcons.plus,
+                              onTap: () =>
+                                  setSheet(() => amount = (amount + 1).clamp(1, 100)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Maliyet',
+                            style: TextStyle(color: AppColors.textSecondary)),
+                        Text(
+                          '${amount}× ($trainCost)',
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Quick-select buttons
+              Row(
+                children: [5, 10, 20, 50].map((n) => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: GestureDetector(
+                      onTap: () => setSheet(() => amount = n),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: amount == n
+                              ? color.withOpacity(0.2)
+                              : AppColors.black,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: amount == n
+                                ? color.withOpacity(0.5)
+                                : Colors.transparent,
+                          ),
+                        ),
+                        child: Text(
+                          '$n',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: amount == n ? color : AppColors.textSecondary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                )).toList(),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: color,
+                    foregroundColor: AppColors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    try {
+                      await ref
+                          .read(resourcesProvider.notifier)
+                          .trainSoldiers(soldierType, amount);
+                    } catch (e) {
+                      if (context.mounted) {
+                        String msg = 'Eğitim başarısız';
+                        if (e is DioException) {
+                          final detail = e.response?.data?['detail'];
+                          if (detail != null) msg = detail.toString();
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(msg),
+                              backgroundColor: Colors.red[700]),
+                        );
+                      }
+                    }
+                  },
+                  child: Text(
+                    '$amount $label Eğit',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final soldier = _soldier;
+    final count = soldier?.count ?? 0;
+    final hasBuilding = _hasBuilding;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: count > 0
+            ? Border.all(color: color.withOpacity(0.3), width: 1)
+            : null,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: color.withOpacity(hasBuilding ? 0.15 : 0.06),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Center(
+              child: Text(icon,
+                  style: TextStyle(
+                      fontSize: 26,
+                      color: hasBuilding ? null : const Color(0xFF555555))),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: hasBuilding ? AppColors.white : AppColors.textSecondary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (count > 0) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$count',
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: const TextStyle(
+                      color: AppColors.textSecondary, fontSize: 12),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  hasBuilding
+                      ? '1× $trainCost'
+                      : '🔒 Gerekli: $requiredBuilding',
+                  style: TextStyle(
+                    color: hasBuilding
+                        ? AppColors.textTertiary
+                        : AppColors.red.withOpacity(0.7),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: hasBuilding ? () => _showTrainSheet(context) : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: hasBuilding
+                    ? color.withOpacity(0.15)
+                    : AppColors.surface3,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: hasBuilding
+                      ? color.withOpacity(0.3)
+                      : Colors.transparent,
+                ),
+              ),
+              child: Text(
+                hasBuilding ? 'Eğit' : 'Kilitli',
+                style: TextStyle(
+                  color: hasBuilding ? color : AppColors.textTertiary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AmountBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _AmountBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: AppColors.surface3,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: AppColors.white, size: 16),
       ),
     );
   }

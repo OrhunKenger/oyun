@@ -1,5 +1,5 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/api_client.dart';
@@ -18,130 +18,459 @@ class LeaderboardScreen extends ConsumerWidget {
     final async = ref.watch(leaderboardProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.primary,
-      appBar: AppBar(
-        backgroundColor: AppTheme.secondary,
-        title: const Text('LİDERLİK TABLOSU', style: TextStyle(color: AppTheme.accent, letterSpacing: 3, fontSize: 13)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.go('/resources'),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: () => ref.invalidate(leaderboardProvider),
-          ),
-        ],
-      ),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.accent)),
-        error: (e, _) => Center(child: Text('Hata: $e', style: const TextStyle(color: AppTheme.accent))),
-        data: (data) {
-          final entries = data['entries'] as List? ?? [];
-          final myRank = data['my_rank'];
-          final total = data['total_players'];
-
-          return Column(
-            children: [
-              _MyRankBanner(myRank: myRank, total: total),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: entries.length,
-                  itemBuilder: (ctx, i) {
-                    final e = entries[i] as Map<String, dynamic>;
-                    return _LeaderboardTile(entry: e, index: i);
-                  },
+      backgroundColor: AppColors.black,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _Header(onRefresh: () => ref.invalidate(leaderboardProvider)),
+            Expanded(
+              child: async.when(
+                loading: () => const Center(
+                  child: CircularProgressIndicator(color: AppColors.blue),
                 ),
+                error: (e, _) => _ErrorView(
+                  onRetry: () => ref.invalidate(leaderboardProvider),
+                ),
+                data: (data) {
+                  final entries = data['entries'] as List? ?? [];
+                  final myRank = data['my_rank'] as int?;
+                  final total = data['total_players'] as int?;
+                  return _LeaderboardBody(
+                    entries: entries,
+                    myRank: myRank,
+                    total: total,
+                  );
+                },
               ),
-            ],
-          );
-        },
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _MyRankBanner extends StatelessWidget {
+// ── Header ───────────────────────────────────────────────
+class _Header extends StatelessWidget {
+  final VoidCallback onRefresh;
+  const _Header({required this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => context.go('/resources'),
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(CupertinoIcons.chevron_left,
+                  color: AppColors.white, size: 18),
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Text(
+              'Sıralama',
+              style: TextStyle(
+                color: AppColors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: onRefresh,
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(CupertinoIcons.refresh,
+                  color: AppColors.white, size: 18),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Body ─────────────────────────────────────────────────
+class _LeaderboardBody extends StatelessWidget {
+  final List entries;
   final int? myRank;
   final int? total;
 
-  const _MyRankBanner({this.myRank, this.total});
+  const _LeaderboardBody({
+    required this.entries,
+    required this.myRank,
+    required this.total,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: AppTheme.secondary,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text('SENİN SIRAN: ', style: TextStyle(color: Colors.white54, fontSize: 12, letterSpacing: 2)),
-          Text(
-            myRank != null ? '#$myRank' : '-',
-            style: const TextStyle(color: AppTheme.gold, fontSize: 24, fontWeight: FontWeight.bold),
+    final top3 = entries.take(3).toList();
+    final rest = entries.skip(3).toList();
+
+    return CustomScrollView(
+      slivers: [
+        // Podium
+        if (top3.isNotEmpty)
+          SliverToBoxAdapter(child: _Podium(top3: top3)),
+
+        // Kendi sıran
+        if (myRank != null)
+          SliverToBoxAdapter(
+            child: _MyRankCard(myRank: myRank!, total: total ?? 0),
           ),
-          if (total != null)
-            Text(' / $total', style: const TextStyle(color: Colors.white38, fontSize: 14)),
+
+        // Başlık
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+            child: Text(
+              'TÜM OYUNCULAR',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ),
+        ),
+
+        // Liste
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (ctx, i) {
+                final e = entries[i] as Map<String, dynamic>;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _LeaderboardTile(entry: e),
+                );
+              },
+              childCount: entries.length,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Podium ───────────────────────────────────────────────
+class _Podium extends StatelessWidget {
+  final List top3;
+  const _Podium({required this.top3});
+
+  @override
+  Widget build(BuildContext context) {
+    final first = top3.isNotEmpty ? top3[0] as Map<String, dynamic> : null;
+    final second = top3.length > 1 ? top3[1] as Map<String, dynamic> : null;
+    final third = top3.length > 2 ? top3[2] as Map<String, dynamic> : null;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (second != null)
+            Expanded(child: _PodiumItem(entry: second, rank: 2, height: 100)),
+          const SizedBox(width: 8),
+          if (first != null)
+            Expanded(child: _PodiumItem(entry: first, rank: 1, height: 130)),
+          const SizedBox(width: 8),
+          if (third != null)
+            Expanded(child: _PodiumItem(entry: third, rank: 3, height: 80)),
         ],
       ),
     );
   }
 }
 
-class _LeaderboardTile extends StatelessWidget {
+class _PodiumItem extends StatelessWidget {
   final Map<String, dynamic> entry;
-  final int index;
+  final int rank;
+  final double height;
 
-  const _LeaderboardTile({required this.entry, required this.index});
+  const _PodiumItem({
+    required this.entry,
+    required this.rank,
+    required this.height,
+  });
+
+  Color get _color {
+    if (rank == 1) return AppColors.yellow;
+    if (rank == 2) return const Color(0xFFC0C0C0);
+    return const Color(0xFFCD7F32);
+  }
+
+  String get _medal {
+    if (rank == 1) return '👑';
+    if (rank == 2) return '🥈';
+    return '🥉';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final rank = entry['rank'] as int? ?? index + 1;
     final username = entry['username'] as String? ?? '?';
     final pixels = entry['pixel_count'] as int? ?? 0;
-    final prestige = entry['prestige'] as int? ?? 0;
 
-    Color rankColor = Colors.white54;
-    String rankIcon = '$rank';
-    if (rank == 1) { rankColor = AppTheme.gold; rankIcon = '👑'; }
-    else if (rank == 2) { rankColor = const Color(0xFFC0C0C0); rankIcon = '🥈'; }
-    else if (rank == 3) { rankColor = const Color(0xFFCD7F32); rankIcon = '🥉'; }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppTheme.secondary,
-        border: Border.all(
-          color: rank <= 3 ? rankColor.withOpacity(0.5) : AppTheme.pixelBorder,
-          width: rank <= 3 ? 1.5 : 1,
+    return Column(
+      children: [
+        Text(_medal, style: const TextStyle(fontSize: 24)),
+        const SizedBox(height: 6),
+        Text(
+          username.length > 8 ? '${username.substring(0, 8)}..' : username,
+          style: const TextStyle(
+            color: AppColors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+          textAlign: TextAlign.center,
         ),
-        borderRadius: BorderRadius.circular(4),
+        const SizedBox(height: 4),
+        Text(
+          '$pixels px',
+          style: TextStyle(color: _color, fontSize: 11, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: height,
+          decoration: BoxDecoration(
+            color: _color.withOpacity(0.12),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            border: Border.all(color: _color.withOpacity(0.3), width: 1),
+          ),
+          child: Center(
+            child: Text(
+              '#$rank',
+              style: TextStyle(
+                color: _color,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Kendi Sıram Kartı ────────────────────────────────────
+class _MyRankCard extends StatelessWidget {
+  final int myRank;
+  final int total;
+  const _MyRankCard({required this.myRank, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.blue.withOpacity(0.2),
+            AppColors.blue.withOpacity(0.05),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.blue.withOpacity(0.3), width: 1),
       ),
       child: Row(
         children: [
-          SizedBox(
-            width: 40,
-            child: Text(rankIcon, style: TextStyle(color: rankColor, fontSize: rank <= 3 ? 20 : 14, fontWeight: FontWeight.bold)),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.blue.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(CupertinoIcons.person_fill,
+                color: AppColors.blue, size: 22),
           ),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Senin Sıran',
+                  style: TextStyle(
+                      color: AppColors.textSecondary, fontSize: 12),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '#$myRank / $total oyuncu',
+                  style: const TextStyle(
+                    color: AppColors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.blue,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '#$myRank',
+              style: const TextStyle(
+                color: AppColors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Sıralama Satırı ──────────────────────────────────────
+class _LeaderboardTile extends StatelessWidget {
+  final Map<String, dynamic> entry;
+  const _LeaderboardTile({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final rank = entry['rank'] as int? ?? 0;
+    final username = entry['username'] as String? ?? '?';
+    final pixels = entry['pixel_count'] as int? ?? 0;
+    final prestige = entry['prestige'] as int? ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 32,
+            child: Text(
+              '#$rank',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.surface3,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Text(
+                username[0].toUpperCase(),
+                style: const TextStyle(
+                  color: AppColors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  username,
+                  style: const TextStyle(
+                    color: AppColors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 if (prestige > 0)
-                  Text('✨ Prestige $prestige', style: const TextStyle(color: AppTheme.accent, fontSize: 11)),
+                  Row(
+                    children: [
+                      const Icon(CupertinoIcons.star_fill,
+                          color: AppColors.yellow, size: 10),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Prestige $prestige',
+                        style: const TextStyle(
+                            color: AppColors.yellow, fontSize: 11),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('$pixels piksel', style: TextStyle(color: rankColor, fontWeight: FontWeight.bold)),
-              const Text('toprak', style: TextStyle(color: Colors.white38, fontSize: 10)),
+              Text(
+                '$pixels',
+                style: const TextStyle(
+                  color: AppColors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Text(
+                'piksel',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 11),
+              ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Hata ─────────────────────────────────────────────────
+class _ErrorView extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _ErrorView({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(CupertinoIcons.wifi_slash,
+              color: AppColors.textSecondary, size: 48),
+          const SizedBox(height: 16),
+          const Text('Bağlantı hatası',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: onRetry,
+            child: const Text('Tekrar Dene'),
           ),
         ],
       ),

@@ -1,14 +1,17 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.features.auth.router import get_current_user
 from app.features.resources.repository import ResourceRepository
 from app.features.resources.service import ResourceService
+from app.features.map.repository import MapRepository
 from app.features.resources.schemas import (
     TapRequest, TapResponse, AllResourcesResponse,
     UpgradeTapRequest, UpgradeTapResponse,
     BuildRequest, BuildResponse, GetBuildingsResponse,
+    TrainRequest, TrainResponse, GetSoldiersResponse,
 )
 
 router = APIRouter()
@@ -23,7 +26,12 @@ async def tap(
     data: TapRequest,
     user=Depends(get_current_user),
     service: ResourceService = Depends(get_service),
+    db: AsyncSession = Depends(get_db),
 ):
+    # İlk tap'ta harita konumu ata
+    if user.home_x is None:
+        map_repo = MapRepository(db)
+        await map_repo.assign_home(user, settings.map_width, settings.map_height, settings.home_clearance)
     return await service.tap(user.id, data)
 
 
@@ -59,3 +67,20 @@ async def build_or_upgrade(
     service: ResourceService = Depends(get_service),
 ):
     return await service.build_or_upgrade(user.id, data)
+
+
+@router.get("/soldiers", response_model=GetSoldiersResponse)
+async def get_soldiers(
+    user=Depends(get_current_user),
+    service: ResourceService = Depends(get_service),
+):
+    return await service.get_soldiers(user.id)
+
+
+@router.post("/train", response_model=TrainResponse)
+async def train_soldiers(
+    data: TrainRequest,
+    user=Depends(get_current_user),
+    service: ResourceService = Depends(get_service),
+):
+    return await service.train_soldiers(user.id, data)
