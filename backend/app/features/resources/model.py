@@ -62,7 +62,35 @@ BUILDING_PRODUCES: dict[str, str | None] = {
 
 SOLDIER_ATTACK = {"swordsman": 3, "archer": 5, "knight": 8, "catapult": 12}
 SOLDIER_DEFENSE = {"swordsman": 3, "archer": 1, "knight": 4, "catapult": 0}
-FOOD_DRAIN_PER_SOLDIER = 0.01  # food/s per soldier
+
+# Geriye uyumluluk için ortalama
+FOOD_DRAIN_PER_SOLDIER = 0.03
+
+# Asker tipine göre food tüketimi (food/s)
+FOOD_DRAIN_PER_TYPE: dict[str, float] = {
+    "swordsman": 0.01,
+    "archer":    0.02,
+    "knight":    0.06,
+    "catapult":  0.10,
+}
+
+# Hangi kaynağı hangi bina üretir → storage cap için
+RESOURCE_PRODUCER: dict[str, str] = {
+    "gold":  "treasury",
+    "wood":  "sawmill",
+    "stone": "quarry",
+    "iron":  "forge",
+    "food":  "farm",
+}
+
+# Pasif kazanç yakalama tavanı (12 saat)
+OFFLINE_CAP_SECONDS = 12 * 3600
+# Depo taban kapasitesi ve seviye başına ek
+STORAGE_BASE = 1000.0
+STORAGE_PER_LEVEL = 5000.0
+# Firar parametreleri
+DESERTION_CYCLE_SECONDS = 60
+DESERTION_RATE = 0.05  # her döngüde %5
 
 BUILDING_BASE_COSTS: dict[str, dict[str, float]] = {
     "sawmill":  {"wood": 50,  "stone": 30},
@@ -89,6 +117,27 @@ SOLDIER_REQUIRED_BUILDING: dict[str, str] = {
     "knight":    "stable",
     "catapult":  "workshop",
 }
+
+# Counter matrisi (RPS): saldıran[satır] vs savunan[sütun] çarpanı
+COUNTER_MATRIX: dict[str, dict[str, float]] = {
+    "swordsman": {"swordsman": 1.0, "archer": 1.3, "knight": 0.7, "catapult": 1.5},
+    "archer":    {"swordsman": 0.7, "archer": 1.0, "knight": 1.5, "catapult": 1.0},
+    "knight":    {"swordsman": 1.5, "archer": 0.7, "knight": 1.0, "catapult": 1.0},
+    "catapult":  {"swordsman": 0.3, "archer": 0.3, "knight": 0.3, "catapult": 0.5},
+}
+
+# Yağma taşıma kapasitesi (toplam birim başına)
+SOLDIER_CARRY: dict[str, int] = {
+    "swordsman": 50,
+    "archer":    30,
+    "knight":    100,
+    "catapult":  0,  # siege engine, ganimet taşımaz
+}
+
+# Catapult binayı vurma çarpanı
+CATAPULT_BUILDING_DAMAGE = 3.0
+# Eş zamanlı savaş limiti (saldıran VEYA savunan)
+MAX_CONCURRENT_BATTLES = 3
 
 
 class PlayerResource(Base):

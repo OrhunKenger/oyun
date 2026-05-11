@@ -5,6 +5,8 @@ class ResourceState {
   final int tapPowerLevel;
   final double autoRate;
   final int autoLevel;
+  final double storageCap;
+  final bool isCapped;
 
   ResourceState({
     required this.resourceType,
@@ -13,6 +15,8 @@ class ResourceState {
     required this.tapPowerLevel,
     required this.autoRate,
     required this.autoLevel,
+    this.storageCap = 1000,
+    this.isCapped = false,
   });
 
   factory ResourceState.fromJson(Map<String, dynamic> json) => ResourceState(
@@ -22,15 +26,19 @@ class ResourceState {
         tapPowerLevel: json['tap_power_level'],
         autoRate: (json['auto_rate'] as num).toDouble(),
         autoLevel: json['auto_level'],
+        storageCap: (json['storage_cap'] as num?)?.toDouble() ?? 1000,
+        isCapped: json['is_capped'] as bool? ?? false,
       );
 
-  ResourceState copyWith({double? amount}) => ResourceState(
+  ResourceState copyWith({double? amount, bool? isCapped}) => ResourceState(
         resourceType: resourceType,
         amount: amount ?? this.amount,
         tapPower: tapPower,
         tapPowerLevel: tapPowerLevel,
         autoRate: autoRate,
         autoLevel: autoLevel,
+        storageCap: storageCap,
+        isCapped: isCapped ?? this.isCapped,
       );
 }
 
@@ -40,6 +48,9 @@ class AllResourcesModel {
   final ResourceState stone;
   final ResourceState iron;
   final ResourceState food;
+  final Map<String, double> offlineGains;
+  final double offlineSeconds;
+  final Map<String, int> desertions;
 
   AllResourcesModel({
     required this.gold,
@@ -47,6 +58,9 @@ class AllResourcesModel {
     required this.stone,
     required this.iron,
     required this.food,
+    this.offlineGains = const {},
+    this.offlineSeconds = 0,
+    this.desertions = const {},
   });
 
   factory AllResourcesModel.fromJson(Map<String, dynamic> json) => AllResourcesModel(
@@ -55,6 +69,15 @@ class AllResourcesModel {
         stone: ResourceState.fromJson(json['stone']),
         iron: ResourceState.fromJson(json['iron']),
         food: ResourceState.fromJson(json['food']),
+        offlineGains: (json['offline_gains'] as Map?)?.map(
+              (k, v) => MapEntry(k.toString(), (v as num).toDouble()),
+            ) ??
+            const {},
+        offlineSeconds: (json['offline_seconds'] as num?)?.toDouble() ?? 0,
+        desertions: (json['desertions'] as Map?)?.map(
+              (k, v) => MapEntry(k.toString(), (v as num).toInt()),
+            ) ??
+            const {},
       );
 }
 

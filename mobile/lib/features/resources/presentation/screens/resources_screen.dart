@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,32 +16,230 @@ class ResourcesScreen extends ConsumerStatefulWidget {
 }
 
 class _ResourcesScreenState extends ConsumerState<ResourcesScreen> {
-  int _selectedTab = 0;
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(resourcesProvider);
 
+    // Offline rapor: state güncellendiğinde tek sefer dialog
+    ref.listen<ResourcesState>(resourcesProvider, (prev, next) {
+      if (next.offlineGainsPending != null && (prev?.offlineGainsPending == null)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _showOfflineReport(
+            context,
+            gains: next.offlineGainsPending!,
+            seconds: next.offlineSecondsPending,
+            desertions: next.desertionsPending ?? const {},
+            onClose: () => ref.read(resourcesProvider.notifier).clearOfflineReport(),
+          );
+        });
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppColors.black,
-      body: IndexedStack(
-        index: _selectedTab,
-        children: [
-          _HomeTab(state: state, ref: ref),
-          const _PlaceholderTab(icon: CupertinoIcons.map, label: 'Harita'),
-          const _PlaceholderTab(icon: CupertinoIcons.rosette, label: 'Liderboard'),
-        ],
-      ),
+      body: _HomeTab(state: state, ref: ref),
       bottomNavigationBar: _BottomNav(
-        selected: _selectedTab,
+        selected: 0,
         onTap: (i) {
-          if (i == 1) { context.go('/map'); return; }
-          if (i == 2) { context.go('/leaderboard'); return; }
-          setState(() => _selectedTab = i);
+          if (i == 1) context.go('/map');
+          if (i == 2) context.go('/leaderboard');
         },
       ),
     );
   }
+}
+
+// ── Offline Rapor Dialog ─────────────────────────────────
+void _showOfflineReport(
+  BuildContext context, {
+  required Map<String, double> gains,
+  required double seconds,
+  required Map<String, int> desertions,
+  required VoidCallback onClose,
+}) {
+  String fmtDuration(double s) {
+    final h = s ~/ 3600;
+    final m = (s % 3600) ~/ 60;
+    if (h > 0) return '${h}s ${m}dk';
+    if (m > 0) return '${m}dk';
+    return '${s.toInt()}sn';
+  }
+
+  String fmtNum(double v) {
+    if (v >= 1e6) return '${(v / 1e6).toStringAsFixed(1)}M';
+    if (v >= 1e3) return '${(v / 1e3).toStringAsFixed(1)}K';
+    return v.toStringAsFixed(0);
+  }
+
+  const labels = {
+    'gold': '💰 Altın',
+    'wood': '🪵 Odun',
+    'stone': '🪨 Taş',
+    'iron': '⚙️ Demir',
+    'food': '🍖 Yiyecek',
+  };
+  const soldierLabels = {
+    'swordsman': '⚔️ Piyade',
+    'archer': '🏹 Okçu',
+    'knight': '🐴 Süvari',
+    'catapult': '💣 Mancınık',
+  };
+
+  final positiveGains = gains.entries.where((e) => e.value > 0).toList();
+  final negativeGains = gains.entries.where((e) => e.value < 0).toList();
+  final hasDesertion = desertions.values.any((v) => v > 0);
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => Dialog(
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text('🌙', style: TextStyle(fontSize: 32)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Hoş geldin komutan!',
+                        style: TextStyle(
+                          color: AppColors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        '${fmtDuration(seconds)} uzaktaydın',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (positiveGains.isNotEmpty) ...[
+              const Text(
+                'KAZANIM',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...positiveGains.map((e) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(labels[e.key] ?? e.key,
+                            style: const TextStyle(color: AppColors.white)),
+                        Text('+${fmtNum(e.value)}',
+                            style: const TextStyle(
+                                color: Color(0xFF32D74B),
+                                fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  )),
+            ],
+            if (negativeGains.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text(
+                'TÜKETİLDİ',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...negativeGains.map((e) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(labels[e.key] ?? e.key,
+                            style: const TextStyle(color: AppColors.white)),
+                        Text(fmtNum(e.value),
+                            style: const TextStyle(
+                                color: AppColors.red,
+                                fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  )),
+            ],
+            if (hasDesertion) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.red.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '⚠️ Yiyecek tükendi — askerler firar etti',
+                      style: TextStyle(
+                        color: AppColors.red,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    ...desertions.entries.where((e) => e.value > 0).map(
+                          (e) => Text(
+                            '${soldierLabels[e.key] ?? e.key}: -${e.value}',
+                            style: const TextStyle(
+                                color: AppColors.white, fontSize: 13),
+                          ),
+                        ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.blue,
+                  foregroundColor: AppColors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  onClose();
+                },
+                child: const Text('Devam',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 // ── Ana Tab ──────────────────────────────────────────────
@@ -269,7 +468,7 @@ class _HomeTab extends StatelessWidget {
                         child: Row(
                           children: [
                             Text(
-                              'ASKERLERx',
+                              'ASKERLER',
                               style: TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 12,
@@ -608,10 +807,22 @@ class _ResourceTileState extends State<_ResourceTile>
     _showUpgradeSheet(context);
   }
 
+  // Backend'le aynı formül: 1 + (lvl-1)*lvl/2
+  int _tapPowerForLevel(int lvl) => 1 + ((lvl - 1) * lvl) ~/ 2;
+
+  // Backend: ilk 3 seviye bedava, sonra 50 * target^2.2
+  double _tapUpgradeCost(int currentLevel) {
+    final target = currentLevel + 1;
+    if (target <= 3) return 0;
+    return 50 * math.pow(target, 2.2).toDouble();
+  }
+
   void _showUpgradeSheet(BuildContext context) {
     final resource = widget.resource;
     final nextLevel = resource.tapPowerLevel + 1;
-    final cost = 100 * (3.0.toInt() * resource.tapPowerLevel.toInt());
+    final nextTapPower = _tapPowerForLevel(nextLevel);
+    final tapDelta = nextTapPower - resource.tapPower;
+    final cost = _tapUpgradeCost(resource.tapPowerLevel);
 
     showModalBottomSheet(
       context: context,
@@ -663,13 +874,17 @@ class _ResourceTileState extends State<_ResourceTile>
                     children: [
                       Text('Seviye $nextLevel',
                           style: const TextStyle(color: AppColors.white, fontWeight: FontWeight.w600)),
-                      Text('+${(2.0 * resource.tapPower).toInt()}/tık',
-                          style: TextStyle(color: widget.color, fontSize: 13)),
+                      Text(
+                        '${resource.tapPower} → $nextTapPower /tık (+$tapDelta)',
+                        style: TextStyle(color: widget.color, fontSize: 13),
+                      ),
                     ],
                   ),
                   Text(
-                    '💰 ${_fmtCost(cost.toDouble())} Altın',
-                    style: const TextStyle(color: AppColors.yellow, fontWeight: FontWeight.w600),
+                    cost == 0 ? '🎁 Bedava' : '💰 ${_fmtCost(cost)} Altın',
+                    style: TextStyle(
+                        color: cost == 0 ? const Color(0xFF32D74B) : AppColors.yellow,
+                        fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -746,6 +961,7 @@ class _ResourceTileState extends State<_ResourceTile>
 
   @override
   Widget build(BuildContext context) {
+    final capped = widget.resource.isCapped;
     return ScaleTransition(
       scale: _scale,
       child: GestureDetector(
@@ -756,6 +972,9 @@ class _ResourceTileState extends State<_ResourceTile>
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(16),
+            border: capped
+                ? Border.all(color: AppColors.yellow.withOpacity(0.5), width: 1)
+                : null,
           ),
           child: Row(
             children: [
@@ -778,20 +997,44 @@ class _ResourceTileState extends State<_ResourceTile>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      widget.label,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          widget.label,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (capped) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.yellow.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'DOLU',
+                              style: TextStyle(
+                                color: AppColors.yellow,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _fmt(widget.resource.amount),
-                      style: const TextStyle(
-                        color: AppColors.white,
-                        fontSize: 22,
+                      '${_fmt(widget.resource.amount)} / ${_fmt(widget.resource.storageCap)}',
+                      style: TextStyle(
+                        color: capped ? AppColors.yellow : AppColors.white,
+                        fontSize: 18,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -821,9 +1064,17 @@ class _ResourceTileState extends State<_ResourceTile>
                   if (widget.resource.autoRate > 0) ...[
                     const SizedBox(height: 4),
                     Text(
-                      '+${widget.resource.autoRate.toStringAsFixed(1)}/s',
-                      style: const TextStyle(
-                          color: AppColors.textSecondary, fontSize: 11),
+                      capped
+                          ? 'MAX'
+                          : '+${widget.resource.autoRate.toStringAsFixed(1)}/s',
+                      style: TextStyle(
+                          color: capped
+                              ? AppColors.yellow
+                              : AppColors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: capped
+                              ? FontWeight.w700
+                              : FontWeight.w400),
                     ),
                   ],
                 ],
@@ -1206,13 +1457,23 @@ class _FoodTile extends StatelessWidget {
     return v.toStringAsFixed(0);
   }
 
+  static const Map<String, double> _foodDrainPerType = {
+    'swordsman': 0.01,
+    'archer': 0.02,
+    'knight': 0.06,
+    'catapult': 0.10,
+  };
+
   @override
   Widget build(BuildContext context) {
     const color = Color(0xFF32D74B);
-    final totalSoldiers = soldiers.fold<int>(0, (s, m) => s + m.count);
-    final drain = totalSoldiers * 0.01;
+    final drain = soldiers.fold<double>(
+      0,
+      (sum, s) => sum + s.count * (_foodDrainPerType[s.soldierType] ?? 0.0),
+    );
     final net = resource.autoRate - drain;
-    final isShortage = net < 0;
+    final isShortage = net < 0 && resource.amount <= 0.01;
+    final capped = resource.isCapped;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -1221,7 +1482,9 @@ class _FoodTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: isShortage
             ? Border.all(color: AppColors.red.withOpacity(0.5), width: 1)
-            : null,
+            : capped
+                ? Border.all(color: AppColors.yellow.withOpacity(0.5), width: 1)
+                : null,
       ),
       child: Row(
         children: [
@@ -1241,20 +1504,45 @@ class _FoodTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Yiyecek',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
+                Row(
+                  children: [
+                    const Text(
+                      'Yiyecek',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (capped) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppColors.yellow.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'DOLU',
+                          style: TextStyle(
+                            color: AppColors.yellow,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _fmt(resource.amount),
-                  style: const TextStyle(
-                    color: AppColors.white,
-                    fontSize: 22,
+                  '${_fmt(resource.amount)} / ${_fmt(resource.storageCap)}',
+                  style: TextStyle(
+                    color: capped
+                        ? AppColors.yellow
+                        : (isShortage ? AppColors.red : AppColors.white),
+                    fontSize: 18,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1292,7 +1580,7 @@ class _FoodTile extends StatelessWidget {
               ),
               if (isShortage)
                 const Text(
-                  '⚠️ Asker firarar!',
+                  '⚠️ Asker firar ediyor!',
                   style: TextStyle(color: AppColors.red, fontSize: 10),
                 ),
             ],
@@ -1671,25 +1959,6 @@ class _AmountBtn extends StatelessWidget {
       ),
     );
   }
-}
-
-// ── Yardımcılar ──────────────────────────────────────────
-class _PlaceholderTab extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _PlaceholderTab({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: AppColors.textSecondary, size: 48),
-            const SizedBox(height: 12),
-            Text(label, style: const TextStyle(color: AppColors.textSecondary)),
-          ],
-        ),
-      );
 }
 
 class _ErrorView extends StatelessWidget {

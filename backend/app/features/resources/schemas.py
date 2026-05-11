@@ -36,6 +36,8 @@ class ResourceState(BaseModel):
     tap_power_level: int
     auto_rate: float
     auto_level: int
+    storage_cap: float = 1000.0
+    is_capped: bool = False
 
     class Config:
         from_attributes = True
@@ -47,6 +49,9 @@ class AllResourcesResponse(BaseModel):
     stone: ResourceState
     iron: ResourceState
     food: ResourceState
+    offline_gains: dict[str, float] = {}
+    offline_seconds: float = 0.0
+    desertions: dict[str, int] = {}
 
 
 class UpgradeTapRequest(BaseModel):
