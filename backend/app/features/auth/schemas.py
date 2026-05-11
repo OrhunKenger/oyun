@@ -40,6 +40,9 @@ class UserProfile(BaseModel):
     pixel_count: int
     total_score: int
     tap_power: int
+    home_x: int | None = None
+    home_y: int | None = None
+    power_score: float = 0.0
 
     class Config:
         from_attributes = True
