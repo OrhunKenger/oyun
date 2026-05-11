@@ -1031,33 +1031,26 @@ class _BuildingTile extends StatelessWidget {
 
   // "80 Odun + 60 Taş" formatını parse edip kaynaklar yeterli mi kontrol eder
   bool _canAfford(String costStr) {
-    final nameToField = {
-      'Altın': 'gold', 'Odun': 'wood', 'Taş': 'stone',
-      'Demir': 'iron', 'Yiyecek': 'food',
+    final nameToAmount = {
+      'Altın': resources.gold.amount,
+      'Odun': resources.wood.amount,
+      'Taş': resources.stone.amount,
+      'Demir': resources.iron.amount,
+      'Yiyecek': resources.food.amount,
     };
     for (final part in costStr.split('+')) {
-      final m = RegExp(r'([\d.,]+)K?\s+(\w+)').firstMatch(part.trim());
-      if (m == null) continue;
-      final rawNum = m.group(1)!.replaceAll(',', '.');
-      double required = double.tryParse(rawNum) ?? 0;
-      if (part.contains('K')) required *= 1000;
-      final field = nameToField[m.group(2)];
-      if (field == null) continue;
-      final have = _amountFor(field);
-      if (have < required) return false;
+      final trimmed = part.trim();
+      for (final entry in nameToAmount.entries) {
+        if (!trimmed.contains(entry.key)) continue;
+        final numMatch = RegExp(r'^([\d.]+)(K?)').firstMatch(trimmed);
+        if (numMatch == null) continue;
+        double required = double.tryParse(numMatch.group(1)!) ?? 0;
+        if (numMatch.group(2) == 'K') required *= 1000;
+        if (entry.value < required) return false;
+        break;
+      }
     }
     return true;
-  }
-
-  double _amountFor(String field) {
-    switch (field) {
-      case 'gold': return resources.gold.amount;
-      case 'wood': return resources.wood.amount;
-      case 'stone': return resources.stone.amount;
-      case 'iron': return resources.iron.amount;
-      case 'food': return resources.food.amount;
-      default: return 0;
-    }
   }
 
   void _onBuild(BuildContext context) async {
