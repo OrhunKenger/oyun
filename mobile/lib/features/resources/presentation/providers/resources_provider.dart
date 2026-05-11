@@ -125,6 +125,8 @@ class ResourcesNotifier extends StateNotifier<ResourcesState> {
   }
 
   Future<void> buildOrUpgrade(String buildingType) async {
+    _batchTimer?.cancel();
+    await _flushTaps();
     state = state.copyWith(buildingsLoading: true);
     try {
       await _ds.buildOrUpgrade(buildingType);
@@ -136,6 +138,8 @@ class ResourcesNotifier extends StateNotifier<ResourcesState> {
   }
 
   Future<void> trainSoldiers(String soldierType, int amount) async {
+    _batchTimer?.cancel();
+    await _flushTaps();
     state = state.copyWith(buildingsLoading: true);
     try {
       await _ds.trainSoldiers(soldierType, amount);
